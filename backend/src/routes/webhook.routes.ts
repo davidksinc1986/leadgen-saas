@@ -68,7 +68,7 @@ next();
 
 function maybeVerifySignature(req: any, res: any, next: any) {
 const required = (process.env.META_SIGNATURE_REQUIRED ?? "true") === "true";
-if (!required) return next(); // <- aquí respeta META_SIGNATURE_REQUIRED=false
+if (!required) return next();
 
 const integration = req._integration;
 if (!integration) return res.status(404).json({ error: "Integration not found" });
@@ -92,7 +92,7 @@ const botFlow = (company as any)?.botFlow ?? undefined;
 
 const inbound = parseByChannel(channel, req.body);
 
-// 200 rápido
+// 200 rápido a Meta
 res.status(200).json({ ok: true, received: inbound.length });
 
 const adapter = channel === "whatsapp" ? whatsappAdapterFromIntegration(integration) : null;
@@ -158,8 +158,20 @@ for (const msg of inbound) {
     }
   }
 
-  if (adapter?.enabled) {
-    await adapter.sendText(msg.externalUserId, result.text);
+  // Envío de respuesta (choice -> interactive si posible)
+  try {
+    if (adapter?.enabled) {
+      if (result.message?.kind === "choice" && adapter.sendChoice) {
+        await adapter.sendChoice(msg.externalUserId, result.message);
+      } else if (result.message?.kind === "text") {
+        await adapter.sendText(msg.externalUserId, result.message.text);
+      } else {
+        await adapter.sendText(msg.externalUserId, result.text);
+      }
+    }
+  } catch (e) {
+    // NO romper el webhook (ya respondimos 200)
+    console.error(e);
   }
 }
 });

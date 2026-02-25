@@ -1,4 +1,5 @@
 import { ConversationDoc } from "../models/Conversation.js";
+import type { OutboundMessage, ChoiceOption } from "../channels/types.js";
 
 export type Condition = {
 path: string;
@@ -41,11 +42,15 @@ finalMessage?: string;
 export type FlowResult =
 | {
     type: "reply";
+    // texto fallback (para canales sin interactive)
     text: string;
+    // payload estructurado para canales que soportan UI (WhatsApp interactive)
+    message?: OutboundMessage;
+
     nextStep?: string; // "q:<id>" | legacy steps | "idle"
     leadPatch?: Record<string, any>;
     convoDataPatch?: Record<string, any>;
-    completed?: boolean; // marca final del flujo
+    completed?: boolean;
   }
 | { type: "noop" };
 
@@ -110,7 +115,6 @@ return step.startsWith("q:") ? step.slice(2) : null;
 }
 
 function makeLeadPatch(saveTo: string, value: any): Record<string, any> {
-// permite "customFields.xxx"
 return { [saveTo]: value };
 }
 
@@ -132,7 +136,6 @@ if (q.type === "number") {
   return { ok: true, value: n };
 }
 
-// text
 return { ok: true, value: t };
 }
 
@@ -144,16 +147,13 @@ currentQuestion: BotQuestion;
 }): string | null {
 const { questions, currentIndex, ctx, currentQuestion } = params;
 
-// 1) reglas de salto
 const rules = currentQuestion.next?.rules ?? [];
 for (const r of rules) {
   if (evalAll(ctx, r.conditions)) return r.nextId;
 }
 
-// 2) defaultNextId explícito
 if (currentQuestion.next?.defaultNextId) return currentQuestion.next.defaultNextId;
 
-// 3) siguiente en orden que cumpla showIf
 for (let i = currentIndex + 1; i < questions.length; i++) {
   const q = questions[i];
   if (evalAll(ctx, q.showIf)) return q.id;
@@ -162,8 +162,33 @@ for (let i = currentIndex + 1; i < questions.length; i++) {
 return null;
 }
 
-// ----- Legacy flow (tu modo anterior) -----
-// Para mantener compatibilidad: si NO hay questions[], usamos el flujo actual que ya tenías.
+// ---------- Helpers para choice ----------
+function toChoiceOptions(opts?: BotOption[]): ChoiceOption[] {
+return (opts ?? []).map((o) => ({
+  id: String(o.key),
+  title: String(o.label || o.value || o.key)
+}));
+}
+
+function choiceFallbackText(prompt: string, opts?: BotOption[]) {
+const lines = (opts ?? []).map((o) => `${o.key} ${o.label || o.value}`);
+return [prompt, ...lines].join("\n");
+}
+
+function replyChoice(prompt: string, opts?: BotOption[], ui: "auto" | "buttons" | "list" = "auto"): FlowResult {
+const options = toChoiceOptions(opts);
+return {
+  type: "reply",
+  text: choiceFallbackText(prompt, opts),
+  message: { kind: "choice", text: prompt, options, ui }
+};
+}
+
+function replyText(text: string): FlowResult {
+return { type: "reply", text, message: { kind: "text", text } };
+}
+
+// ----- Legacy flow -----
 function legacyFlow(messageText: string, convo: ConversationDoc, cfg: Required<BotFlowConfig>): FlowResult {
 const text = normalize(messageText);
 const textLower = normalizeLower(messageText);
@@ -176,55 +201,81 @@ const trigger =
   textLower === "info";
 
 if (convo.step === "idle" && trigger) {
-  return { type: "reply", text: `${cfg.prompts!.welcome}\n\n${cfg.prompts!.askPropertyType}`, nextStep: "choose_property" };
+  const prompt = `${cfg.prompts!.welcome}\n\n${cfg.prompts!.askPropertyType}`;
+  // propertyOptions normalmente son 4 => lista (auto decide list)
+  return replyChoice(prompt, cfg.propertyOptions, "auto");
 }
 
 if (convo.step === "choose_property") {
-  const opt = (cfg.propertyOptions ?? []).find(o => o.key === textLower);
-  if (!opt) return { type: "reply", text: cfg.prompts!.invalidOption!, nextStep: "choose_property" };
+  const opt = (cfg.propertyOptions ?? []).find((o) => o.key === textLower);
+  if (!opt) return replyText(cfg.prompts!.invalidOption!);
 
-  // saltos según enabledQuestions
   if (cfg.enabledQuestions?.presupuesto) {
-    return { type: "reply", text: cfg.prompts!.askBudget!, nextStep: "ask_budget", leadPatch: { interes: opt.value }, convoDataPatch: { interes: opt.value } };
+    return {
+      ...replyText(cfg.prompts!.askBudget!),
+      nextStep: "ask_budget",
+      leadPatch: { interes: opt.value },
+      convoDataPatch: { interes: opt.value }
+    };
   }
   if (cfg.enabledQuestions?.ubicacion) {
-    return { type: "reply", text: cfg.prompts!.askLocation!, nextStep: "ask_location", leadPatch: { interes: opt.value }, convoDataPatch: { interes: opt.value } };
+    return {
+      ...replyText(cfg.prompts!.askLocation!),
+      nextStep: "ask_location",
+      leadPatch: { interes: opt.value },
+      convoDataPatch: { interes: opt.value }
+    };
   }
   if (cfg.enabledQuestions?.tiempoCompra) {
-    return { type: "reply", text: cfg.prompts!.askTime!, nextStep: "ask_time", leadPatch: { interes: opt.value }, convoDataPatch: { interes: opt.value } };
+    // timeOptions normalmente 4 => lista (auto)
+    const r = replyChoice(cfg.prompts!.askTime!, cfg.timeOptions, "auto");
+    return { ...r, nextStep: "ask_time", leadPatch: { interes: opt.value }, convoDataPatch: { interes: opt.value } };
   }
-  return { type: "reply", text: cfg.finalMessage ?? "Listo.", nextStep: "idle", leadPatch: { interes: opt.value }, convoDataPatch: { interes: opt.value }, completed: true };
+
+  return {
+    ...replyText(cfg.finalMessage ?? "Listo."),
+    nextStep: "idle",
+    leadPatch: { interes: opt.value },
+    convoDataPatch: { interes: opt.value },
+    completed: true
+  };
 }
 
 if (convo.step === "ask_budget") {
-  if (!text) return { type: "reply", text: cfg.prompts!.askBudget!, nextStep: "ask_budget" };
+  if (!text) return { ...replyText(cfg.prompts!.askBudget!), nextStep: "ask_budget" };
 
   if (cfg.enabledQuestions?.ubicacion) {
-    return { type: "reply", text: cfg.prompts!.askLocation!, nextStep: "ask_location", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text } };
+    return { ...replyText(cfg.prompts!.askLocation!), nextStep: "ask_location", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text } };
   }
   if (cfg.enabledQuestions?.tiempoCompra) {
-    return { type: "reply", text: cfg.prompts!.askTime!, nextStep: "ask_time", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text } };
+    const r = replyChoice(cfg.prompts!.askTime!, cfg.timeOptions, "auto");
+    return { ...r, nextStep: "ask_time", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text } };
   }
-  return { type: "reply", text: cfg.finalMessage ?? "Listo.", nextStep: "idle", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text }, completed: true };
+
+  return { ...replyText(cfg.finalMessage ?? "Listo."), nextStep: "idle", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text }, completed: true };
 }
 
 if (convo.step === "ask_location") {
-  if (text.length < 2) return { type: "reply", text: cfg.prompts!.askLocation!, nextStep: "ask_location" };
+  if (text.length < 2) return { ...replyText(cfg.prompts!.askLocation!), nextStep: "ask_location" };
 
   if (cfg.enabledQuestions?.tiempoCompra) {
-    return { type: "reply", text: cfg.prompts!.askTime!, nextStep: "ask_time", leadPatch: { ubicacion: text }, convoDataPatch: { ubicacion: text } };
+    const r = replyChoice(cfg.prompts!.askTime!, cfg.timeOptions, "auto");
+    return { ...r, nextStep: "ask_time", leadPatch: { ubicacion: text }, convoDataPatch: { ubicacion: text } };
   }
-  return { type: "reply", text: cfg.finalMessage ?? "Listo.", nextStep: "idle", leadPatch: { ubicacion: text }, convoDataPatch: { ubicacion: text }, completed: true };
+
+  return { ...replyText(cfg.finalMessage ?? "Listo."), nextStep: "idle", leadPatch: { ubicacion: text }, convoDataPatch: { ubicacion: text }, completed: true };
 }
 
 if (convo.step === "ask_time") {
-  const opt = (cfg.timeOptions ?? []).find(o => o.key === textLower);
+  const opt = (cfg.timeOptions ?? []).find((o) => o.key === textLower);
   const tiempoCompra = opt?.value ?? (text.length >= 2 ? text : "");
-  if (!tiempoCompra) return { type: "reply", text: cfg.prompts!.askTime!, nextStep: "ask_time" };
+  if (!tiempoCompra) {
+    const r = replyChoice(cfg.prompts!.askTime!, cfg.timeOptions, "auto");
+    return { ...r, nextStep: "ask_time" };
+  }
 
   return {
-    type: "reply",
-    text: cfg.finalMessage ?? "Listo.",
+    ...replyText(cfg.finalMessage ?? "Listo."),
     nextStep: "idle",
     leadPatch: { tiempoCompra },
     convoDataPatch: { tiempoCompra },
@@ -277,13 +328,23 @@ if (isReset(text)) {
   if (cfg.questions?.length) {
     const ctx = { answers: {}, lead: {} };
     const first = cfg.questions.find((q) => evalAll(ctx, q.showIf)) ?? null;
-    if (!first) return { type: "reply", text: cfg.finalMessage!, nextStep: "idle", completed: true };
-    return { type: "reply", text: first.prompt, nextStep: `q:${first.id}`, convoDataPatch: { answers: {}, leadDraft: {} } };
+    if (!first) return { ...replyText(cfg.finalMessage!), nextStep: "idle", completed: true };
+
+    // si first es choice, devolvemos choice
+    if (first.type === "choice") {
+      const r = replyChoice(first.prompt, first.options, "auto");
+      return { ...r, nextStep: `q:${first.id}`, convoDataPatch: { answers: {}, leadDraft: {} } };
+    }
+
+    return { ...replyText(first.prompt), nextStep: `q:${first.id}`, convoDataPatch: { answers: {}, leadDraft: {} } };
   }
-  return { type: "reply", text: `${cfg.prompts!.welcome}\n\n${cfg.prompts!.askPropertyType}`, nextStep: "choose_property", convoDataPatch: {} };
+
+  // legacy reset
+  const prompt = `${cfg.prompts!.welcome}\n\n${cfg.prompts!.askPropertyType}`;
+  const r = replyChoice(prompt, cfg.propertyOptions, "auto");
+  return { ...r, nextStep: "choose_property", convoDataPatch: {} };
 }
 
-// trigger inicial
 const trigger =
   textLower.includes("quiero información") ||
   textLower.includes("quiero informacion") ||
@@ -299,15 +360,21 @@ if (cfg.questions?.length) {
   if (convo.step === "idle" && trigger) {
     const ctx = { answers: convo.data?.answers ?? {}, lead: convo.data?.leadDraft ?? {} };
     const first = cfg.questions.find((q) => evalAll(ctx, q.showIf)) ?? null;
-    if (!first) return { type: "reply", text: cfg.finalMessage!, nextStep: "idle", completed: true };
-    return { type: "reply", text: first.prompt, nextStep: `q:${first.id}`, convoDataPatch: { answers: ctx.answers, leadDraft: ctx.lead } };
+    if (!first) return { ...replyText(cfg.finalMessage!), nextStep: "idle", completed: true };
+
+    if (first.type === "choice") {
+      const r = replyChoice(first.prompt, first.options, "auto");
+      return { ...r, nextStep: `q:${first.id}`, convoDataPatch: { answers: ctx.answers, leadDraft: ctx.lead } };
+    }
+
+    return { ...replyText(first.prompt), nextStep: `q:${first.id}`, convoDataPatch: { answers: ctx.answers, leadDraft: ctx.lead } };
   }
 
   // answering a question
   if (stepQid) {
     const questions = cfg.questions;
     const idx = questions.findIndex((q) => q.id === stepQid);
-    if (idx === -1) return { type: "reply", text: cfg.finalMessage!, nextStep: "idle", completed: true };
+    if (idx === -1) return { ...replyText(cfg.finalMessage!), nextStep: "idle", completed: true };
 
     const q = questions[idx];
 
@@ -316,20 +383,33 @@ if (cfg.questions?.length) {
       lead: convo.data?.leadDraft ?? {}
     };
 
-    // si no cumple showIf en este momento, lo saltamos al siguiente
+    // si no cumple showIf ahora, saltamos
     if (!evalAll(ctx, q.showIf)) {
       const nextId = findNextQuestionId({ questions, currentIndex: idx, ctx, currentQuestion: q });
-      if (!nextId) return { type: "reply", text: cfg.finalMessage!, nextStep: "idle", completed: true };
+      if (!nextId) return { ...replyText(cfg.finalMessage!), nextStep: "idle", completed: true };
+
       const nextQ = questions.find((qq) => qq.id === nextId);
-      return { type: "reply", text: nextQ?.prompt ?? cfg.finalMessage!, nextStep: `q:${nextId}` };
+      if (!nextQ) return { ...replyText(cfg.finalMessage!), nextStep: "idle", completed: true };
+
+      if (nextQ.type === "choice") {
+        const r = replyChoice(nextQ.prompt, nextQ.options, "auto");
+        return { ...r, nextStep: `q:${nextId}` };
+      }
+      return { ...replyText(nextQ.prompt), nextStep: `q:${nextId}` };
     }
 
     const parsed = parseAnswer(q, messageText);
-    if (!parsed.ok) return { type: "reply", text: parsed.errorText ?? q.prompt, nextStep: `q:${q.id}` };
+    if (!parsed.ok) {
+      // si es choice, re-mostramos opciones
+      if (q.type === "choice") {
+        const r = replyChoice(parsed.errorText ?? q.prompt, q.options, "auto");
+        return { ...r, nextStep: `q:${q.id}` };
+      }
+      return { ...replyText(parsed.errorText ?? q.prompt), nextStep: `q:${q.id}` };
+    }
 
     const value = parsed.value;
 
-    // patches
     const leadPatch = makeLeadPatch(q.saveTo, value);
     const answersPatch = {
       ...(ctx.answers ?? {}),
@@ -337,14 +417,11 @@ if (cfg.questions?.length) {
     };
     const leadDraftPatch = { ...(ctx.lead ?? {}), ...leadPatch };
 
-    // actualizar ctx para evaluar reglas
     const ctx2 = { answers: answersPatch, lead: leadDraftPatch };
 
-    // next
     const nextIdRaw = findNextQuestionId({ questions, currentIndex: idx, ctx: ctx2, currentQuestion: q });
     const nextQ = nextIdRaw ? questions.find((qq) => qq.id === nextIdRaw) : null;
 
-    // si el next apunta a algo que no pasa showIf, avanzamos por orden
     let nextId = nextIdRaw;
     if (nextQ && !evalAll(ctx2, nextQ.showIf)) {
       nextId = null;
@@ -358,8 +435,7 @@ if (cfg.questions?.length) {
 
     if (!nextId) {
       return {
-        type: "reply",
-        text: cfg.finalMessage!,
+        ...replyText(cfg.finalMessage!),
         nextStep: "idle",
         leadPatch,
         convoDataPatch: { answers: answersPatch, leadDraft: leadDraftPatch },
@@ -367,11 +443,29 @@ if (cfg.questions?.length) {
       };
     }
 
-    const nextQuestion = questions.find((qq) => qq.id === nextId)!;
+    const nextQuestion = questions.find((qq) => qq.id === nextId);
+    if (!nextQuestion) {
+      return {
+        ...replyText(cfg.finalMessage!),
+        nextStep: "idle",
+        leadPatch,
+        convoDataPatch: { answers: answersPatch, leadDraft: leadDraftPatch },
+        completed: true
+      };
+    }
+
+    if (nextQuestion.type === "choice") {
+      const r = replyChoice(nextQuestion.prompt, nextQuestion.options, "auto");
+      return {
+        ...r,
+        nextStep: `q:${nextId}`,
+        leadPatch,
+        convoDataPatch: { answers: answersPatch, leadDraft: leadDraftPatch }
+      };
+    }
 
     return {
-      type: "reply",
-      text: nextQuestion.prompt,
+      ...replyText(nextQuestion.prompt),
       nextStep: `q:${nextId}`,
       leadPatch,
       convoDataPatch: { answers: answersPatch, leadDraft: leadDraftPatch }
