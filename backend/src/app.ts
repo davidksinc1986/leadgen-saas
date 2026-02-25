@@ -1,0 +1,52 @@
+import "express-async-errors";
+import express from "express";
+import cors from "cors";
+import morgan from "morgan";
+import { tenantResolver } from "./middleware/tenantResolver.js";
+import { errorHandler } from "./middleware/errorHandler.js";
+
+import { authRouter } from "./routes/auth.routes.js";
+import { companyRouter } from "./routes/company.routes.js";
+import { leadRouter } from "./routes/lead.routes.js";
+import { webhookRouter } from "./routes/webhook.routes.js";
+
+import { agentRouter } from "./routes/agent.routes.js";
+import { companySettingsRouter } from "./routes/company.settings.routes.js";
+import { companyBotFlowRouter } from "./routes/company.botflow.routes.js";
+
+import { integrationRouter } from "./routes/integration.routes.js";
+
+export function createApp() {
+ const app = express();
+
+ app.use(cors());
+
+ // Capturar rawBody para firmas Meta
+ app.use(
+   express.json({
+     limit: "2mb",
+     verify: (req: any, _res, buf) => {
+       req.rawBody = buf;
+     }
+   })
+ );
+
+ app.use(morgan("dev"));
+ app.use(tenantResolver);
+
+ app.get("/health", (_req, res) => res.json({ ok: true }));
+
+ app.use("/auth", authRouter);
+ app.use("/companies", companyRouter);
+ app.use("/company", companySettingsRouter);
+ app.use("/company", companyBotFlowRouter);
+
+ app.use("/agents", agentRouter);
+ app.use("/integrations", integrationRouter);
+
+ app.use("/leads", leadRouter);
+ app.use("/webhooks", webhookRouter);
+
+ app.use(errorHandler);
+ return app;
+}
