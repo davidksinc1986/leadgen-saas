@@ -33,5 +33,7 @@ const LeadSchema = new mongoose.Schema(
 
 LeadSchema.index({ companyId: 1, telefono: 1 }, { unique: true });
 
-export const Lead = mongoose.model("Lead", LeadSchema);
-export type LeadDoc = mongoose.InferSchemaType<typeof LeadSchema> & { _id: mongoose.Types.ObjectId };
+export type LeadShape = mongoose.InferSchemaType<typeof LeadSchema>;
+export type LeadDoc = mongoose.HydratedDocument<LeadShape>;
+
+export const Lead = mongoose.model<LeadShape>("Lead", LeadSchema);
