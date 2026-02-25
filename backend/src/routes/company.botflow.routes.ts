@@ -32,6 +32,7 @@ const questionSchema = z.object({
  type: z.enum(["choice", "text", "number"]),
  prompt: z.string().min(1),
  required: z.boolean().optional().default(true),
+
  saveTo: z
    .string()
    .min(1)
@@ -41,8 +42,10 @@ const questionSchema = z.object({
        s.startsWith("customFields."),
      "saveTo must be a standard lead field or start with customFields."
    ),
+
  options: z.array(optionSchema).optional().default([]),
  showIf: z.array(conditionSchema).optional().default([]),
+
  next: z
    .object({
      defaultNextId: z.string().nullable().optional().default(null),
@@ -52,21 +55,26 @@ const questionSchema = z.object({
    .default({ defaultNextId: null, rules: [] })
 });
 
-function ensureArray<T>(v: any): T[] {
+function ensureArray(v: any): any[] {
  return Array.isArray(v) ? v : [];
 }
 
 function validateQuestionGraph(questions: any[]) {
- const ids = new Set(questions.map((q) => q.id));
+ const ids = new Set<string>(questions.map((q) => String(q.id)));
  const errors: string[] = [];
 
  for (const q of questions) {
    const defaultNextId = q?.next?.defaultNextId;
-   if (defaultNextId && !ids.has(defaultNextId)) errors.push(`Question ${q.id}: next.defaultNextId '${defaultNextId}' does not exist`);
+   if (defaultNextId && !ids.has(String(defaultNextId))) {
+     errors.push(`Question ${q.id}: next.defaultNextId '${defaultNextId}' does not exist`);
+   }
 
    const rules = ensureArray(q?.next?.rules);
-   for (const r of rules) {
-     if (r?.nextId && !ids.has(r.nextId)) errors.push(`Question ${q.id}: next.rules nextId '${r.nextId}' does not exist`);
+   for (const r of rules as any[]) {
+     const nextId = (r as any)?.nextId;
+     if (nextId && !ids.has(String(nextId))) {
+       errors.push(`Question ${q.id}: next.rules nextId '${nextId}' does not exist`);
+     }
    }
 
    if (q.type === "choice" && (!q.options || q.options.length === 0)) {
@@ -150,12 +158,9 @@ companyBotFlowRouter.post("/me/bot-flow/preview", requireAuth, requireRole("admi
  const botFlow = (company as any)?.botFlow ?? undefined;
 
  const fakeConvo = { step: body.step, data: body.data } as any;
-
  const result = handleInboundText(body.text, fakeConvo, botFlow);
 
- // helper: data resultante (merge superficial)
  const mergedData = { ...(body.data ?? {}), ...((result as any).convoDataPatch ?? {}) };
-
  res.json({ result, mergedData });
 });
 
@@ -207,12 +212,10 @@ companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRol
      .string()
      .min(1)
      .optional()
-     .refine(
-       (s) =>
-         ["nombre", "interes", "presupuesto", "ubicacion", "tiempoCompra"].includes(s) ||
-         s.startsWith("customFields."),
-       "saveTo must be a standard lead field or start with customFields."
-     ),
+     .refine((s) => {
+       if (!s) return true; // <- fix TS: optional field
+       return ["nombre", "interes", "presupuesto", "ubicacion", "tiempoCompra"].includes(s) || s.startsWith("customFields.");
+     }, "saveTo must be a standard lead field or start with customFields."),
    options: z.array(optionSchema).optional(),
    showIf: z.array(conditionSchema).optional(),
    next: z
@@ -223,7 +226,7 @@ companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRol
      .optional()
  });
 
- const patch = patchSchema.parse(req.body);
+ const patch = patchSchema.parse(req.body) as any;
 
  const company = await Company.findById(companyId);
  if (!company) return res.status(404).json({ error: "Company not found" });
@@ -234,8 +237,11 @@ companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRol
  const idx = questions.findIndex((q: any) => q.id === id);
  if (idx === -1) return res.status(404).json({ error: "Question not found" });
 
- const updated = { ...questions[idx], ...patch };
- updated.id = id;
+ const updated = { ...(questions[idx] as any), ...(patch as any), id };
+
+ if (updated.type === "choice" && (!updated.options || updated.options.length === 0)) {
+   return res.status(400).json({ error: "choice question requires options[]" });
+ }
 
  questions[idx] = updated;
 
@@ -248,7 +254,6 @@ companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRol
 
 /**
 * MOVE question (reorder)
-* POST /company/me/bot-flow/questions/:id/move { toIndex }
 */
 companyBotFlowRouter.post("/me/bot-flow/questions/:id/move", requireAuth, requireRole("admin"), async (req, res) => {
  const companyId = req.companyId!;
@@ -274,7 +279,7 @@ companyBotFlowRouter.post("/me/bot-flow/questions/:id/move", requireAuth, requir
 });
 
 /**
-* DELETE question by id
+* DELETE question
 */
 companyBotFlowRouter.delete("/me/bot-flow/questions/:id", requireAuth, requireRole("admin"), async (req, res) => {
  const companyId = req.companyId!;

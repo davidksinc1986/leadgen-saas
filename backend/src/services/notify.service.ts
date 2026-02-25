@@ -1,5 +1,4 @@
 import nodemailer from "nodemailer";
-import { env } from "../config/env.js";
 import { log } from "../config/logger.js";
 import { Company } from "../models/Company.js";
 import { LeadDoc } from "../models/Lead.js";
@@ -26,20 +25,23 @@ const { companyId, lead, agentName } = params;
 const company = await Company.findById(companyId);
 if (!company) return;
 
+// asegurar objeto notifications para TS y runtime
+(lead as any).notifications = (lead as any).notifications ?? { emailNotifiedAt: null, whatsappNotifiedAt: null };
+
 const msg =
   `Nuevo lead calificado (${company.name})\n\n` +
-  `Nombre: ${lead.nombre || "-"}\n` +
-  `Tel: ${lead.telefono}\n` +
-  `Interés: ${lead.interes || "-"}\n` +
-  `Presupuesto: ${lead.presupuesto || "-"}\n` +
-  `Ubicación: ${lead.ubicacion || "-"}\n` +
-  `Tiempo compra: ${lead.tiempoCompra || "-"}\n` +
-  `Estado: ${lead.estado}\n` +
+  `Nombre: ${(lead as any).nombre || "-"}\n` +
+  `Tel: ${(lead as any).telefono}\n` +
+  `Interés: ${(lead as any).interes || "-"}\n` +
+  `Presupuesto: ${(lead as any).presupuesto || "-"}\n` +
+  `Ubicación: ${(lead as any).ubicacion || "-"}\n` +
+  `Tiempo compra: ${(lead as any).tiempoCompra || "-"}\n` +
+  `Estado: ${(lead as any).estado}\n` +
   (agentName ? `Asignado a: ${agentName}\n` : "");
 
 // Email
-if (company.notifications?.email?.enabled && !lead.notifications?.emailNotifiedAt) {
-  const to = company.notifications.email.to ?? [];
+if ((company as any).notifications?.email?.enabled && !(lead as any).notifications?.emailNotifiedAt) {
+  const to = (company as any).notifications.email.to ?? [];
   if (!to.length) {
     log.warn("[notify] email enabled but no recipients configured");
   } else if (!smtpEnabled()) {
@@ -52,14 +54,14 @@ if (company.notifications?.email?.enabled && !lead.notifications?.emailNotifiedA
       subject: `Nuevo lead calificado - ${company.name}`,
       text: msg
     });
-    lead.notifications.emailNotifiedAt = new Date();
+    (lead as any).notifications.emailNotifiedAt = new Date();
     await lead.save();
   }
 }
 
-// WhatsApp (a agentes o supervisores)
-if (company.notifications?.whatsapp?.enabled && !lead.notifications?.whatsappNotifiedAt) {
-  const to = company.notifications.whatsapp.to ?? [];
+// WhatsApp (safe)
+if ((company as any).notifications?.whatsapp?.enabled && !(lead as any).notifications?.whatsappNotifiedAt) {
+  const to = (company as any).notifications.whatsapp.to ?? [];
   if (!to.length) {
     log.warn("[notify] whatsapp enabled but no recipients configured");
   } else {
@@ -70,7 +72,7 @@ if (company.notifications?.whatsapp?.enabled && !lead.notifications?.whatsappNot
       for (const phone of to) {
         await wa.sendText(phone, msg);
       }
-      lead.notifications.whatsappNotifiedAt = new Date();
+      (lead as any).notifications.whatsappNotifiedAt = new Date();
       await lead.save();
     }
   }
