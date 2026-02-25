@@ -123,4 +123,102 @@ for (const msg of inbound) {
 
   if (msg.phone) {
     let updatedLead: any = null;
-    const hasPatch = !!(result.leadPatch && Object.keys
+    const hasPatch = !!(result.leadPatch && Object.keys(result.leadPatch).length);
+
+    if (hasPatch) {
+      updatedLead = await Lead.findOneAndUpdate(
+        { companyId, telefono: msg.phone },
+        { $set: { ...result.leadPatch, lastMessageAt: new Date() } },
+        { new: true }
+      );
+    } else {
+      updatedLead = await Lead.findOne({ companyId, telefono: msg.phone });
+      if (updatedLead) {
+        updatedLead.lastMessageAt = new Date();
+        await updatedLead.save();
+      }
+    }
+
+    if (updatedLead && result.completed) {
+      if (!updatedLead.qualifiedAt) updatedLead.qualifiedAt = new Date();
+
+      let agentName: string | undefined;
+      if (!updatedLead.assignedAgentId) {
+        const agent = await assignAgentRoundRobin(companyId);
+        if (agent) {
+          updatedLead.assignedAgentId = agent._id;
+          agentName = agent.name || agent.email;
+        }
+      }
+
+      await updatedLead.save();
+      await notifyLeadQualified({ companyId: String(companyId), lead: updatedLead, agentName });
+    }
+  }
+
+  try {
+    if (adapter?.enabled) {
+      // DEBUG: ver si realmente tenemos choice + sendChoice
+      if (channel === "whatsapp") {
+        console.log("[wa-ui]", {
+          hasSendChoice: !!(adapter as any).sendChoice,
+          kind: result.message?.kind ?? null,
+          nextStep: result.nextStep ?? null
+        });
+      }
+
+      if (result.message?.kind === "choice" && (adapter as any).sendChoice) {
+        await (adapter as any).sendChoice(msg.externalUserId, result.message);
+      } else if (result.message?.kind === "text") {
+        await adapter.sendText(msg.externalUserId, result.message.text);
+      } else {
+        await adapter.sendText(msg.externalUserId, result.text);
+      }
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+});
+
+// MVP (webchat + header)
+webhookRouter.post("/:channel", async (req, res) => {
+const channel = req.params.channel;
+
+const companyIdRaw = req.header(env.tenantHeader);
+if (!companyIdRaw || !mongoose.isValidObjectId(companyIdRaw)) {
+  return res.status(400).json({ error: `Missing/invalid ${env.tenantHeader}` });
+}
+const companyId = new mongoose.Types.ObjectId(companyIdRaw);
+
+const company = await Company.findById(companyId).select("botFlow");
+const botFlow = (company as any)?.botFlow ?? undefined;
+
+const inbound = parseByChannel(channel, req.body);
+res.status(200).json({ ok: true, received: inbound.length });
+
+for (const msg of inbound) {
+  const convo = await getOrCreateConversation({
+    companyId,
+    channel: msg.channel,
+    externalUserId: msg.externalUserId,
+    telefono: msg.phone
+  });
+
+  if (msg.phone) {
+    await upsertLeadByPhone({
+      companyId,
+      telefono: msg.phone,
+      source: msg.channel,
+      nombre: msg.name
+    });
+  }
+
+  const result = handleInboundText(msg.text, convo, botFlow);
+  if (result.type !== "reply") continue;
+
+  if (result.convoDataPatch) convo.data = { ...(convo.data ?? {}), ...(result.convoDataPatch ?? {}) };
+  if (result.nextStep) convo.step = result.nextStep;
+  await convo.save();
+}
+});
