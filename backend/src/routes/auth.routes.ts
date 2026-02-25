@@ -14,6 +14,7 @@ const schema = z.object({
   email: z.string().email(),
   password: z.string().min(1)
 });
+
 const { companyId, email, password } = schema.parse(req.body);
 
 if (!mongoose.isValidObjectId(companyId)) return res.status(400).json({ error: "Invalid companyId" });
@@ -27,7 +28,7 @@ if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 const token = jwt.sign(
   { userId: String(user._id), companyId: String(companyId), role: user.role },
   env.jwtSecret,
-  { expiresIn: env.jwtExpiresIn }
+  { expiresIn: env.jwtExpiresIn as unknown as jwt.SignOptions["expiresIn"] } // <- FIX
 );
 
 res.json({ token });
