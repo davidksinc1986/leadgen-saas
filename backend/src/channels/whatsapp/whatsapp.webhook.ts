@@ -10,20 +10,53 @@ for (const e of entry) {
     const value = c?.value;
     const messages = value?.messages ?? [];
     for (const m of messages) {
-      if (m?.type !== "text") continue;
-
       const waId = m?.from;
-      const text = m?.text?.body ?? "";
       const contacts = value?.contacts ?? [];
       const name = contacts?.[0]?.profile?.name;
 
-      out.push({
-        channel: "whatsapp",
-        externalUserId: waId,
-        phone: waId,
-        name,
-        text
-      });
+      // TEXT
+      if (m?.type === "text") {
+        const text = m?.text?.body ?? "";
+        out.push({
+          channel: "whatsapp",
+          externalUserId: waId,
+          phone: waId,
+          name,
+          text
+        });
+        continue;
+      }
+
+      // INTERACTIVE (button/list reply)
+      if (m?.type === "interactive") {
+        const interactive = m?.interactive;
+
+        // button_reply: { id, title }
+        const br = interactive?.button_reply;
+        if (br?.id || br?.title) {
+          out.push({
+            channel: "whatsapp",
+            externalUserId: waId,
+            phone: waId,
+            name,
+            text: String(br.id ?? br.title ?? "")
+          });
+          continue;
+        }
+
+        // list_reply: { id, title, description }
+        const lr = interactive?.list_reply;
+        if (lr?.id || lr?.title) {
+          out.push({
+            channel: "whatsapp",
+            externalUserId: waId,
+            phone: waId,
+            name,
+            text: String(lr.id ?? lr.title ?? "")
+          });
+          continue;
+        }
+      }
     }
   }
 }
