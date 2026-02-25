@@ -37,17 +37,17 @@ questions?: BotQuestion[];
 finalMessage?: string;
 };
 
-export type FlowResult =
-| {
-    type: "reply";
-    text: string;
-    message?: OutboundMessage;
-    nextStep?: string;
-    leadPatch?: Record<string, any>;
-    convoDataPatch?: Record<string, any>;
-    completed?: boolean;
-  }
-| { type: "noop" };
+export type ReplyResult = {
+type: "reply";
+text: string;                // fallback texto
+message?: OutboundMessage;    // opcional (choice/text)
+nextStep?: string;
+leadPatch?: Record<string, any>;
+convoDataPatch?: Record<string, any>;
+completed?: boolean;
+};
+
+export type FlowResult = ReplyResult | { type: "noop" };
 
 function normalize(text: string) {
 return (text ?? "").trim();
@@ -58,103 +58,6 @@ return normalize(text).toLowerCase();
 function isReset(text: string) {
 const t = normalizeLower(text);
 return t === "reiniciar" || t === "reset" || t === "menu" || t === "inicio";
-}
-
-function getPath(obj: any, path: string) {
-return path.split(".").reduce((acc, key) => (acc == null ? acc : acc[key]), obj);
-}
-
-function evalCondition(ctx: any, c: Condition): boolean {
-const actual = getPath(ctx, c.path);
-
-switch (c.op) {
-  case "exists":
-    return actual !== undefined && actual !== null && actual !== "";
-  case "equals":
-    return actual === c.value;
-  case "notEquals":
-    return actual !== c.value;
-  case "contains":
-    if (typeof actual === "string") return typeof c.value === "string" ? actual.includes(c.value) : false;
-    if (Array.isArray(actual)) return actual.includes(c.value);
-    return false;
-  case "in":
-    return Array.isArray(c.value) ? c.value.includes(actual) : false;
-  case "gt":
-    return Number(actual) > Number(c.value);
-  case "gte":
-    return Number(actual) >= Number(c.value);
-  case "lt":
-    return Number(actual) < Number(c.value);
-  case "lte":
-    return Number(actual) <= Number(c.value);
-  case "regex":
-    try {
-      const r = new RegExp(String(c.value));
-      return r.test(String(actual ?? ""));
-    } catch {
-      return false;
-    }
-  default:
-    return false;
-}
-}
-
-function evalAll(ctx: any, conditions?: Condition[]) {
-if (!conditions || !conditions.length) return true;
-return conditions.every((c) => evalCondition(ctx, c));
-}
-
-function stepToQuestionId(step: string) {
-return step.startsWith("q:") ? step.slice(2) : null;
-}
-
-function makeLeadPatch(saveTo: string, value: any): Record<string, any> {
-return { [saveTo]: value };
-}
-
-function parseAnswer(q: BotQuestion, raw: string): { ok: boolean; value?: any; errorText?: string } {
-const t = normalize(raw);
-const required = q.required !== false;
-
-if (!t && required) return { ok: false, errorText: q.prompt };
-
-if (q.type === "choice") {
-  const opt = (q.options ?? []).find((o) => o.key === normalizeLower(raw));
-  if (!opt) return { ok: false, errorText: q.prompt };
-  return { ok: true, value: opt.value };
-}
-
-if (q.type === "number") {
-  const n = Number(t.replace(/[^\d.-]/g, ""));
-  if (Number.isNaN(n)) return { ok: false, errorText: q.prompt };
-  return { ok: true, value: n };
-}
-
-return { ok: true, value: t };
-}
-
-function findNextQuestionId(params: {
-questions: BotQuestion[];
-currentIndex: number;
-ctx: any;
-currentQuestion: BotQuestion;
-}): string | null {
-const { questions, currentIndex, ctx, currentQuestion } = params;
-
-const rules = currentQuestion.next?.rules ?? [];
-for (const r of rules) {
-  if (evalAll(ctx, r.conditions)) return r.nextId;
-}
-
-if (currentQuestion.next?.defaultNextId) return currentQuestion.next.defaultNextId;
-
-for (let i = currentIndex + 1; i < questions.length; i++) {
-  const q = questions[i];
-  if (evalAll(ctx, q.showIf)) return q.id;
-}
-
-return null;
 }
 
 // -------- choice helpers ----------
@@ -170,7 +73,7 @@ const lines = (opts ?? []).map((o) => `${o.key} ${o.label || o.value}`);
 return [prompt, ...lines].join("\n");
 }
 
-function replyChoice(prompt: string, opts?: BotOption[], ui: "auto" | "buttons" | "list" = "auto"): FlowResult {
+function replyChoice(prompt: string, opts?: BotOption[], ui: "auto" | "buttons" | "list" = "auto"): ReplyResult {
 const options = toChoiceOptions(opts);
 return {
   type: "reply",
@@ -179,7 +82,7 @@ return {
 };
 }
 
-function replyText(text: string): FlowResult {
+function replyText(text: string): ReplyResult {
 return { type: "reply", text, message: { kind: "text", text } };
 }
 
@@ -195,18 +98,18 @@ const trigger =
   textLower.includes("informacion") ||
   textLower === "info";
 
+// START
 if (convo.step === "idle" && trigger) {
   const prompt = `${cfg.prompts!.welcome}\n\n¿Qué tipo de propiedad buscas?`;
-  const r = replyChoice(prompt, cfg.propertyOptions, "auto");
-  return { ...r, nextStep: "choose_property" };
+  return { ...replyChoice(prompt, cfg.propertyOptions, "auto"), nextStep: "choose_property" };
 }
 
+// PROPERTY
 if (convo.step === "choose_property") {
   const opt = (cfg.propertyOptions ?? []).find((o) => o.key === textLower);
   if (!opt) {
     const prompt = `${cfg.prompts!.invalidOption}\n\n¿Qué tipo de propiedad buscas?`;
-    const r = replyChoice(prompt, cfg.propertyOptions, "auto");
-    return { ...r, nextStep: "choose_property" };
+    return { ...replyChoice(prompt, cfg.propertyOptions, "auto"), nextStep: "choose_property" };
   }
 
   if (cfg.enabledQuestions?.presupuesto) {
@@ -217,6 +120,7 @@ if (convo.step === "choose_property") {
       convoDataPatch: { interes: opt.value }
     };
   }
+
   if (cfg.enabledQuestions?.ubicacion) {
     return {
       ...replyText(cfg.prompts!.askLocation!),
@@ -225,48 +129,94 @@ if (convo.step === "choose_property") {
       convoDataPatch: { interes: opt.value }
     };
   }
+
   if (cfg.enabledQuestions?.tiempoCompra) {
-    const r = replyChoice("¿En qué tiempo planeas comprar?", cfg.timeOptions, "auto");
-    return { ...r, nextStep: "ask_time", leadPatch: { interes: opt.value }, convoDataPatch: { interes: opt.value } };
+    return {
+      ...replyChoice("¿En qué tiempo planeas comprar?", cfg.timeOptions, "auto"),
+      nextStep: "ask_time",
+      leadPatch: { interes: opt.value },
+      convoDataPatch: { interes: opt.value }
+    };
   }
 
-  return { ...replyText(cfg.finalMessage ?? "Listo."), nextStep: "idle", leadPatch: { interes: opt.value }, convoDataPatch: { interes: opt.value }, completed: true };
+  return {
+    ...replyText(cfg.finalMessage ?? "Listo."),
+    nextStep: "idle",
+    leadPatch: { interes: opt.value },
+    convoDataPatch: { interes: opt.value },
+    completed: true
+  };
 }
 
+// BUDGET
 if (convo.step === "ask_budget") {
   if (!text) return { ...replyText(cfg.prompts!.askBudget!), nextStep: "ask_budget" };
 
   if (cfg.enabledQuestions?.ubicacion) {
-    return { ...replyText(cfg.prompts!.askLocation!), nextStep: "ask_location", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text } };
-  }
-  if (cfg.enabledQuestions?.tiempoCompra) {
-    const r = replyChoice("¿En qué tiempo planeas comprar?", cfg.timeOptions, "auto");
-    return { ...r, nextStep: "ask_time", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text } };
+    return {
+      ...replyText(cfg.prompts!.askLocation!),
+      nextStep: "ask_location",
+      leadPatch: { presupuesto: text },
+      convoDataPatch: { presupuesto: text }
+    };
   }
 
-  return { ...replyText(cfg.finalMessage ?? "Listo."), nextStep: "idle", leadPatch: { presupuesto: text }, convoDataPatch: { presupuesto: text }, completed: true };
+  if (cfg.enabledQuestions?.tiempoCompra) {
+    return {
+      ...replyChoice("¿En qué tiempo planeas comprar?", cfg.timeOptions, "auto"),
+      nextStep: "ask_time",
+      leadPatch: { presupuesto: text },
+      convoDataPatch: { presupuesto: text }
+    };
+  }
+
+  return {
+    ...replyText(cfg.finalMessage ?? "Listo."),
+    nextStep: "idle",
+    leadPatch: { presupuesto: text },
+    convoDataPatch: { presupuesto: text },
+    completed: true
+  };
 }
 
+// LOCATION
 if (convo.step === "ask_location") {
   if (text.length < 2) return { ...replyText(cfg.prompts!.askLocation!), nextStep: "ask_location" };
 
   if (cfg.enabledQuestions?.tiempoCompra) {
-    const r = replyChoice("¿En qué tiempo planeas comprar?", cfg.timeOptions, "auto");
-    return { ...r, nextStep: "ask_time", leadPatch: { ubicacion: text }, convoDataPatch: { ubicacion: text } };
+    return {
+      ...replyChoice("¿En qué tiempo planeas comprar?", cfg.timeOptions, "auto"),
+      nextStep: "ask_time",
+      leadPatch: { ubicacion: text },
+      convoDataPatch: { ubicacion: text }
+    };
   }
 
-  return { ...replyText(cfg.finalMessage ?? "Listo."), nextStep: "idle", leadPatch: { ubicacion: text }, convoDataPatch: { ubicacion: text }, completed: true };
+  return {
+    ...replyText(cfg.finalMessage ?? "Listo."),
+    nextStep: "idle",
+    leadPatch: { ubicacion: text },
+    convoDataPatch: { ubicacion: text },
+    completed: true
+  };
 }
 
+// TIME
 if (convo.step === "ask_time") {
   const opt = (cfg.timeOptions ?? []).find((o) => o.key === textLower);
   const tiempoCompra = opt?.value ?? (text.length >= 2 ? text : "");
+
   if (!tiempoCompra) {
-    const r = replyChoice("¿En qué tiempo planeas comprar?", cfg.timeOptions, "auto");
-    return { ...r, nextStep: "ask_time" };
+    return { ...replyChoice("¿En qué tiempo planeas comprar?", cfg.timeOptions, "auto"), nextStep: "ask_time" };
   }
 
-  return { ...replyText(cfg.finalMessage ?? "Listo."), nextStep: "idle", leadPatch: { tiempoCompra }, convoDataPatch: { tiempoCompra }, completed: true };
+  return {
+    ...replyText(cfg.finalMessage ?? "Listo."),
+    nextStep: "idle",
+    leadPatch: { tiempoCompra },
+    convoDataPatch: { tiempoCompra },
+    completed: true
+  };
 }
 
 return { type: "noop" };
@@ -311,7 +261,7 @@ const text = normalize(messageText);
 const textLower = normalizeLower(messageText);
 
 if (isReset(text)) {
-  return { ...replyText(`${cfg.prompts!.welcome}\n\n¿Qué tipo de propiedad buscas?`), nextStep: "choose_property" };
+  return { ...replyChoice(`${cfg.prompts!.welcome}\n\n¿Qué tipo de propiedad buscas?`, cfg.propertyOptions, "auto"), nextStep: "choose_property" };
 }
 
 const trigger =
@@ -321,16 +271,15 @@ const trigger =
   textLower.includes("informacion") ||
   textLower === "info";
 
-// Builder mode (si quieres, lo hacemos interactivo también en la siguiente iteración)
+// Si hay builder activo y quieres que también sea interactive, lo hacemos en el siguiente paso.
+// Por ahora, mantenemos legacy como fuente de UI.
 if (cfg.questions?.length) {
-  // mantenemos builder tal cual para no romper tu setup actual
-  // (si confirmas que estás usando builder, lo hacemos interactivo también)
+  // fallback a legacy mientras migramos builder a interactive
 }
 
 if (convo.step === "idle" && trigger) {
   const prompt = `${cfg.prompts!.welcome}\n\n¿Qué tipo de propiedad buscas?`;
-  const r = replyChoice(prompt, cfg.propertyOptions, "auto");
-  return { ...r, nextStep: "choose_property" };
+  return { ...replyChoice(prompt, cfg.propertyOptions, "auto"), nextStep: "choose_property" };
 }
 
 return legacyFlow(messageText, convo, cfg);
