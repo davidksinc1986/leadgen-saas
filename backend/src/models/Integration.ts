@@ -4,7 +4,7 @@ const IntegrationSchema = new mongoose.Schema(
  {
    companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true, index: true },
 
-   channel: { type: String, enum: ["whatsapp", "messenger", "instagram"], required: true, index: true },
+   channel: { type: String, enum: ["whatsapp", "facebook", "messenger", "instagram", "tiktok"], required: true, index: true },
    name: { type: String, default: "" },
    enabled: { type: Boolean, default: false },
 
@@ -13,7 +13,9 @@ const IntegrationSchema = new mongoose.Schema(
      phoneNumberId: { type: String, default: "" }, // WhatsApp Cloud API
      wabaId: { type: String, default: "" },
      pageId: { type: String, default: "" }, // Messenger
-     igUserId: { type: String, default: "" } // Instagram
+     igUserId: { type: String, default: "" }, // Instagram
+     fbPageId: { type: String, default: "" },
+     tiktokAccountId: { type: String, default: "" }
    },
 
    // Webhook verify token (Meta GET challenge)

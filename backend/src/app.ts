@@ -13,6 +13,7 @@ import { webhookRouter } from "./routes/webhook.routes.js";
 import { agentRouter } from "./routes/agent.routes.js";
 import { companySettingsRouter } from "./routes/company.settings.routes.js";
 import { companyBotFlowRouter } from "./routes/company.botflow.routes.js";
+import { companyUsersRouter } from "./routes/company.users.routes.js";
 
 import { integrationRouter } from "./routes/integration.routes.js";
 
@@ -40,6 +41,7 @@ export function createApp() {
  app.use("/companies", companyRouter);
  app.use("/company", companySettingsRouter);
  app.use("/company", companyBotFlowRouter);
+ app.use("/company", companyUsersRouter);
 
  app.use("/agents", agentRouter);
  app.use("/integrations", integrationRouter);
