@@ -7,16 +7,16 @@ import { encrypt } from "../utils/crypto.js";
 
 export const integrationRouter = Router();
 
-integrationRouter.get("/", requireAuth, requireRole("admin"), async (req, res) => {
+integrationRouter.get("/", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
  const integrations = await Integration.find({ companyId }).select("-accessTokenEnc -appSecretEnc");
  res.json({ integrations });
 });
 
-integrationRouter.post("/", requireAuth, requireRole("admin"), async (req, res) => {
+integrationRouter.post("/", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
  const schema = z.object({
-   channel: z.enum(["whatsapp", "messenger", "instagram"]),
+   channel: z.enum(["whatsapp", "facebook", "messenger", "instagram", "tiktok"]),
    name: z.string().min(1),
    enabled: z.boolean().optional().default(false),
    isDefault: z.boolean().optional().default(false),
@@ -28,7 +28,9 @@ integrationRouter.post("/", requireAuth, requireRole("admin"), async (req, res) 
        phoneNumberId: z.string().optional(),
        wabaId: z.string().optional(),
        pageId: z.string().optional(),
-       igUserId: z.string().optional()
+       igUserId: z.string().optional(),
+       fbPageId: z.string().optional(),
+       tiktokAccountId: z.string().optional()
      })
      .optional()
      .default({}),
@@ -58,7 +60,7 @@ integrationRouter.post("/", requireAuth, requireRole("admin"), async (req, res) 
  res.json({ integrationId: String(doc._id) });
 });
 
-integrationRouter.patch("/:id", requireAuth, requireRole("admin"), async (req, res) => {
+integrationRouter.patch("/:id", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
  const id = req.params.id;
 
@@ -73,7 +75,9 @@ integrationRouter.patch("/:id", requireAuth, requireRole("admin"), async (req, r
        phoneNumberId: z.string().optional(),
        wabaId: z.string().optional(),
        pageId: z.string().optional(),
-       igUserId: z.string().optional()
+       igUserId: z.string().optional(),
+       fbPageId: z.string().optional(),
+       tiktokAccountId: z.string().optional()
      })
      .optional(),
 

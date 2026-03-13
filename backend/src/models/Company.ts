@@ -96,9 +96,25 @@ const CompanySchema = new mongoose.Schema(
   slug: { type: String, required: true, unique: true },
 
   integrations: {
-    whatsapp: { enabled: { type: Boolean, default: false } },
+    whatsapp: { enabled: { type: Boolean, default: false }, provider: { type: String, default: "meta" } },
+    facebook: { enabled: { type: Boolean, default: false } },
     messenger: { enabled: { type: Boolean, default: false } },
-    instagram: { enabled: { type: Boolean, default: false } }
+    instagram: { enabled: { type: Boolean, default: false } },
+    tiktok: { enabled: { type: Boolean, default: false } },
+    elevenLabs: { enabled: { type: Boolean, default: false }, voiceId: { type: String, default: "" }, apiKeyEnc: { type: String, default: "" } },
+    salesforce: { enabled: { type: Boolean, default: false }, instanceUrl: { type: String, default: "" }, clientId: { type: String, default: "" }, clientSecretEnc: { type: String, default: "" } }
+  },
+
+  limits: {
+    maxCompanyAdmins: { type: Number, default: 3 },
+    maxAgents: { type: Number, default: 20 }
+  },
+
+  leadGoal: { type: String, enum: ["appointment", "lead"], default: "appointment" },
+
+  languages: {
+    primary: { type: String, default: "en" },
+    enabled: { type: [String], default: ["en", "es", "pt", "fr", "de"] }
   },
 
   notifications: {

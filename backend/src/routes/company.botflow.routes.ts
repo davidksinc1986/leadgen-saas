@@ -88,7 +88,7 @@ function validateQuestionGraph(questions: any[]) {
 /**
 * GET bot flow
 */
-companyBotFlowRouter.get("/me/bot-flow", requireAuth, requireRole("admin"), async (req, res) => {
+companyBotFlowRouter.get("/me/bot-flow", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
  const company = await Company.findById(companyId).select("botFlow");
  res.json({ botFlow: (company as any)?.botFlow ?? null });
@@ -97,7 +97,7 @@ companyBotFlowRouter.get("/me/bot-flow", requireAuth, requireRole("admin"), asyn
 /**
 * PATCH bot flow (settings generales)
 */
-companyBotFlowRouter.patch("/me/bot-flow", requireAuth, requireRole("admin"), async (req, res) => {
+companyBotFlowRouter.patch("/me/bot-flow", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
 
  const schema = z.object({
@@ -144,7 +144,7 @@ companyBotFlowRouter.patch("/me/bot-flow", requireAuth, requireRole("admin"), as
 * PREVIEW: simula una interacción sin tocar leads ni conversations
 * body: { step?: string, data?: any, text: string }
 */
-companyBotFlowRouter.post("/me/bot-flow/preview", requireAuth, requireRole("admin"), async (req, res) => {
+companyBotFlowRouter.post("/me/bot-flow/preview", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
  const schema = z.object({
    step: z.string().optional().default("idle"),
@@ -167,7 +167,7 @@ companyBotFlowRouter.post("/me/bot-flow/preview", requireAuth, requireRole("admi
 /**
 * POST add question
 */
-companyBotFlowRouter.post("/me/bot-flow/questions", requireAuth, requireRole("admin"), async (req, res) => {
+companyBotFlowRouter.post("/me/bot-flow/questions", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
 
  const schema = z.object({
@@ -200,7 +200,7 @@ companyBotFlowRouter.post("/me/bot-flow/questions", requireAuth, requireRole("ad
 /**
 * PATCH update question by id
 */
-companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRole("admin"), async (req, res) => {
+companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
  const id = req.params.id;
 
@@ -255,7 +255,7 @@ companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRol
 /**
 * MOVE question (reorder)
 */
-companyBotFlowRouter.post("/me/bot-flow/questions/:id/move", requireAuth, requireRole("admin"), async (req, res) => {
+companyBotFlowRouter.post("/me/bot-flow/questions/:id/move", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
  const id = req.params.id;
 
@@ -281,7 +281,7 @@ companyBotFlowRouter.post("/me/bot-flow/questions/:id/move", requireAuth, requir
 /**
 * DELETE question
 */
-companyBotFlowRouter.delete("/me/bot-flow/questions/:id", requireAuth, requireRole("admin"), async (req, res) => {
+companyBotFlowRouter.delete("/me/bot-flow/questions/:id", requireAuth, requireRole("company_admin"), async (req, res) => {
  const companyId = req.companyId!;
  const id = req.params.id;
 

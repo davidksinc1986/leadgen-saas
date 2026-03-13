@@ -10,8 +10,8 @@ if (!token) return res.status(401).json({ error: "Unauthorized" });
 
 try {
   const payload = jwt.verify(token, env.jwtSecret) as any;
-  req.user = { userId: payload.userId, companyId: payload.companyId, role: payload.role };
-  req.companyId = req.companyId ?? (payload.companyId ? new mongoose.Types.ObjectId(payload.companyId) : undefined);
+  req.user = { userId: payload.userId, companyId: payload.companyId ?? "", role: payload.role };
+  req.companyId = req.companyId ?? (payload.companyId && mongoose.isValidObjectId(payload.companyId) ? new mongoose.Types.ObjectId(payload.companyId) : undefined);
   return next();
 } catch {
   return res.status(401).json({ error: "Unauthorized" });
