@@ -8,6 +8,8 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { companyRouter } from "./routes/company.routes.js";
 import { leadRouter } from "./routes/lead.routes.js";
+import { campaignRouter } from "./routes/campaign.routes.js";
+import { analyticsRouter } from "./routes/analytics.routes.js";
 import { webhookRouter } from "./routes/webhook.routes.js";
 
 import { agentRouter } from "./routes/agent.routes.js";
@@ -47,6 +49,8 @@ export function createApp() {
  app.use("/integrations", integrationRouter);
 
  app.use("/leads", leadRouter);
+ app.use("/campaigns", campaignRouter);
+ app.use("/analytics", analyticsRouter);
  app.use("/webhooks", webhookRouter);
 
  app.use(errorHandler);
