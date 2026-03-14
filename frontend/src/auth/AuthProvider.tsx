@@ -11,11 +11,11 @@ login: (params: AuthState) => void;
 logout: () => void;
 };
 
-const Ctx = createContext<AuthCtx | null>();
+const Ctx = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-const [token, setToken] = useState<string | null>();
-const [companyId, setCompanyId] = useState<string | null>();
+const [token, setToken] = useState<string | null>(null);
+const [companyId, setCompanyId] = useState<string | null>(null);
 
 useEffect(() => {
   const saved = loadAuth();

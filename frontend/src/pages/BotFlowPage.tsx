@@ -239,29 +239,29 @@ useEffect(() => {
 }, []);
 
 return (
-  <div style={{ padding: 20, fontFamily: "system-ui" }}>
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-      <h2>Bot Flow</h2>
-      <div style={{ display: "flex", gap: 8 }}>
+  <div className="page">
+    <div className="page-header">
+      <div><h2 className="page-title">Bot Flow Builder</h2><p className="page-subtitle">Configura preguntas, lógica y preview conversacional.</p></div>
+      <div className="actions-row">
         <button onClick={createExampleFlow}>Crear flujo ejemplo</button>
         <button onClick={load} disabled={loading}>Refrescar</button>
       </div>
     </div>
 
-    <p style={{ color: "#555" }}>
+    <p className="page-subtitle">
       CRUD de preguntas + Preview. Si <b>questions</b> tiene elementos, el bot usa el builder (q:...).
     </p>
 
-    {error && <div style={{ color: "crimson", whiteSpace: "pre-wrap", marginBottom: 12 }}>{error}</div>}
+    {error && <div className="error-box">{error}</div>}
 
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start" }}>
+    <div className="panel-grid" style={{ alignItems: "start" }}>
       <div>
         <h3>Preguntas ({questions.length})</h3>
 
-        <div style={{ border: "1px solid #ddd", borderRadius: 8, overflow: "hidden" }}>
-          <table width="100%" cellPadding={10} style={{ borderCollapse: "collapse" }}>
+        <div className="data-table-wrap">
+          <table className="data-table" cellPadding={10}>
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid #eee" }}>
+              <tr>
                 <th>#</th>
                 <th>ID</th>
                 <th>Tipo</th>
@@ -272,24 +272,24 @@ return (
             </thead>
             <tbody>
               {questions.map((q, idx) => (
-                <tr key={q.id} style={{ borderBottom: "1px solid #f3f3f3" }}>
+                <tr key={q.id}>
                   <td>{idx}</td>
-                  <td style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>{q.id}</td>
+                  <td className="mono">{q.id}</td>
                   <td>{q.type}</td>
                   <td>{q.saveTo}</td>
-                  <td style={{ display: "flex", gap: 6 }}>
+                  <td><div className="actions-row">
                     <button disabled={idx === 0} onClick={() => move(q.id, idx - 1)}>↑</button>
                     <button disabled={idx === questions.length - 1} onClick={() => move(q.id, idx + 1)}>↓</button>
-                  </td>
-                  <td style={{ display: "flex", gap: 8 }}>
+                  </div></td>
+                  <td><div className="actions-row">
                     <button onClick={() => loadIntoEditor(q)}>Editar</button>
                     <button onClick={() => delQuestion(q.id)}>Eliminar</button>
-                  </td>
+                  </div></td>
                 </tr>
               ))}
               {!questions.length && (
                 <tr>
-                  <td colSpan={6} style={{ color: "#666" }}>
+                  <td colSpan={6} style={{ color: "#64748b" }}>
                     No hay preguntas aún.
                   </td>
                 </tr>
@@ -304,7 +304,6 @@ return (
             value={botFlow?.finalMessage ?? ""}
             onChange={(e) => setBotFlow((prev) => ({ ...(prev ?? {}), finalMessage: e.target.value }))}
             rows={3}
-            style={{ width: "100%", padding: 10 }}
           />
           <button
             onClick={async () => {
@@ -327,12 +326,12 @@ return (
             <div style={{ color: "#666" }}><b>step:</b> {previewStep}</div>
           </div>
 
-          <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, minHeight: 140, background: "#fff" }}>
+          <div className="surface chat-log">
             {previewLog.length === 0 ? (
-              <div style={{ color: "#666" }}>Envía un mensaje para probar el flujo.</div>
+              <div style={{ color: "#64748b" }}>Envía un mensaje para probar el flujo.</div>
             ) : (
               previewLog.map((m, i) => (
-                <div key={i} style={{ marginBottom: 8 }}>
+                <div key={i} className={`chat-bubble ${m.from === "user" ? "chat-user" : "chat-bot"}`}>
                   <b>{m.from === "user" ? "Tú" : "Bot"}:</b> <span style={{ whiteSpace: "pre-wrap" }}>{m.text}</span>
                 </div>
               ))
@@ -344,7 +343,7 @@ return (
               value={previewInput}
               onChange={(e) => setPreviewInput(e.target.value)}
               placeholder="Escribe aquí..."
-              style={{ flex: 1, padding: 10 }}
+              style={{ flex: 1 }}
               onKeyDown={(e) => { if (e.key === "Enter") previewSend(); }}
             />
             <button onClick={previewSend} disabled={!previewInput.trim()}>Enviar</button>
@@ -363,10 +362,10 @@ return (
           value={draftJson}
           onChange={(e) => setDraftJson(e.target.value)}
           rows={28}
-          style={{ width: "100%", padding: 10, fontFamily: "ui-monospace, Menlo, monospace" }}
+          className="mono"
         />
 
-        <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+        <div className="actions-row" style={{ marginTop: 10 }}>
           <button onClick={addQuestion}>Crear (POST)</button>
           <button
             onClick={() => {
