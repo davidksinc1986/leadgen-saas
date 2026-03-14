@@ -21,6 +21,14 @@ const LeadSchema = new mongoose.Schema(
   qualifiedAt: { type: Date, default: null },
   assignedAgentId: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
 
+  leadScore: { type: Number, default: 40, min: 0, max: 100, index: true },
+  priority: { type: String, enum: ["low", "medium", "high"], default: "medium", index: true },
+  lastContactedAt: { type: Date, default: null },
+  nextFollowUpAt: { type: Date, default: null, index: true },
+  followUpStatus: { type: String, enum: ["pending", "done", "overdue"], default: "pending", index: true },
+  followUpNotes: { type: String, default: "" },
+  tags: { type: [String], default: [] },
+
   notifications: {
     emailNotifiedAt: { type: Date, default: null },
     whatsappNotifiedAt: { type: Date, default: null }

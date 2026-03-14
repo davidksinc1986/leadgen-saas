@@ -161,6 +161,10 @@ companySettingsRouter.delete("/users/:userId", requireAuth, requireRole(["compan
     return res.status(400).json({ error: "You cannot delete your own user" });
   }
 
+  if (user.systemProtected) {
+    return res.status(403).json({ error: "System protected user cannot be deleted" });
+  }
+
   await user.deleteOne();
   res.json({ ok: true });
 });

@@ -18,6 +18,7 @@ import { companyBotFlowRouter } from "./routes/company.botflow.routes.js";
 import { companyUsersRouter } from "./routes/company.users.routes.js";
 
 import { integrationRouter } from "./routes/integration.routes.js";
+import { superAdminRouter } from "./routes/super.admin.routes.js";
 
 export function createApp() {
  const app = express();
@@ -52,6 +53,7 @@ export function createApp() {
  app.use("/campaigns", campaignRouter);
  app.use("/analytics", analyticsRouter);
  app.use("/webhooks", webhookRouter);
+ app.use("/super", superAdminRouter);
 
  app.use(errorHandler);
  return app;

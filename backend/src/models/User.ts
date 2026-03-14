@@ -19,6 +19,9 @@ const UserSchema = new mongoose.Schema(
     whatsappNumber: { type: String, default: "" },
     role: { type: String, enum: USER_ROLES, default: "company_admin" },
 
+    isActive: { type: Boolean, default: true, index: true },
+    systemProtected: { type: Boolean, default: false, index: true },
+
     profileVerified: { type: Boolean, default: false },
     profileImageUrl: { type: String, default: "" },
     autoReplyEnabled: { type: Boolean, default: true },
