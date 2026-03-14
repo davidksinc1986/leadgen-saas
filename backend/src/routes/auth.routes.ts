@@ -33,6 +33,7 @@ authRouter.post("/login", async (req, res) => {
 
   const user = await User.findOne({ companyId, email, role: { $in: ["company_admin", "admin", "agent"] } });
   if (!user) return res.status(401).json({ error: "Invalid credentials" });
+  if (!user.isActive) return res.status(403).json({ error: "User is blocked" });
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return res.status(401).json({ error: "Invalid credentials" });
@@ -50,6 +51,7 @@ authRouter.post("/super/login", async (req, res) => {
   const { email, password } = schema.parse(req.body);
   const user = await User.findOne({ email, role: "super_admin" });
   if (!user) return res.status(401).json({ error: "Invalid credentials" });
+  if (!user.isActive) return res.status(403).json({ error: "User is blocked" });
 
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return res.status(401).json({ error: "Invalid credentials" });

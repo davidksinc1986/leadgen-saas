@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 type Condition = {
 path: string;
@@ -243,6 +244,7 @@ return (
     <div className="page-header">
       <div><h2 className="page-title">Bot Flow Builder</h2><p className="page-subtitle">Configura preguntas, lógica y preview conversacional.</p></div>
       <div className="actions-row">
+          <LanguageSwitcher />
         <button onClick={createExampleFlow}>Crear flujo ejemplo</button>
         <button onClick={load} disabled={loading}>Refrescar</button>
       </div>

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import { useI18n } from "../i18n/I18nProvider";
+import LanguageSwitcher from "../components/LanguageSwitcher";
 
 type Kpis = {
   totalLeads: number;
@@ -54,6 +56,7 @@ const emptyForm = {
 
 export default function RevenueIntelPage() {
   const nav = useNavigate();
+  const { t } = useI18n();
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [form, setForm] = useState(emptyForm);
@@ -108,8 +111,9 @@ export default function RevenueIntelPage() {
           <p className="page-subtitle">Vista ejecutiva con atribución de canales y performance por campaña.</p>
         </div>
         <div className="actions-row">
-          <button onClick={() => nav("/leads")}>Leads</button>
-          <button onClick={loadAll}>Refrescar</button>
+          <LanguageSwitcher />
+          <button onClick={() => nav("/leads")}>{t("common.leads")}</button>
+          <button onClick={loadAll}>{t("common.refresh")}</button>
         </div>
       </div>
 
