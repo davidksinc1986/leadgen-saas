@@ -3,11 +3,13 @@ import { loadAuth, saveAuth } from "../lib/storage";
 import type { AuthRole, AuthState } from "../lib/storage";
 import { setAuth } from "../lib/api";
 
+type LoginParams = Pick<AuthState, "token" | "companyId"> & { role?: AuthRole | null };
+
 type AuthCtx = {
   token: string | null;
   companyId: string | null;
   role: AuthRole | null;
-  login: (params: AuthState) => void;
+  login: (params: LoginParams) => void;
   logout: () => void;
 };
 
