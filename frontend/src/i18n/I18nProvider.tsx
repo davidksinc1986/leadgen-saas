@@ -14,7 +14,7 @@ const Ctx = createContext<I18nCtx | null>(null);
 function getInitialLocale(): Locale {
   const saved = localStorage.getItem(STORAGE_KEY) as Locale | null;
   if (saved && saved in translations) return saved;
-  return "es";
+  return "en";
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {

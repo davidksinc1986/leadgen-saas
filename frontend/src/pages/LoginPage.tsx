@@ -5,25 +5,22 @@ import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 
-const valueProps = [
+const salonValueProps = [
   {
-    title: "Prospección inteligente",
-    text: "Automatiza seguimientos y prioriza leads con mayor intención de compra.",
-    image:
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=80",
+    title: "Season-ready beauty campaigns",
+    text: "Launch spring nails, summer glow-ups, and holiday salon bundles with templates your team can publish in minutes.",
+    image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=900&q=80"
   },
   {
-    title: "Pipeline saludable",
-    text: "Visualiza en tiempo real dónde se enfrían tus oportunidades y actúa antes.",
-    image:
-      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=900&q=80",
+    title: "Perfect intake forms",
+    text: "Every form includes examples and clear hints so clients complete details correctly without extra follow-up calls.",
+    image: "https://images.unsplash.com/photo-1595475884562-073c30d45670?auto=format&fit=crop&w=900&q=80"
   },
   {
-    title: "Crecimiento predecible",
-    text: "Combina métricas de campañas, bots y ventas en un solo centro de control.",
-    image:
-      "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=900&q=80",
-  },
+    title: "Social setup made simple",
+    text: "Get step-by-step onboarding for Instagram, Facebook, WhatsApp, and TikTok to keep your booking pipeline full.",
+    image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=80"
+  }
 ];
 
 export default function LoginPage() {
@@ -31,8 +28,8 @@ export default function LoginPage() {
   const { t } = useI18n();
   const nav = useNavigate();
   const [companyId, setCompanyId] = useState("");
-  const [email, setEmail] = useState("admin@demo.com");
-  const [password, setPassword] = useState("12345678");
+  const [email, setEmail] = useState("davidksinc@gmail.com");
+  const [password, setPassword] = useState("M@davi19!");
   const [error, setError] = useState<string | null>();
   const [loading, setLoading] = useState(false);
 
@@ -41,10 +38,15 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const resp = await api.post("/auth/login", { companyId, email, password });
+      const isSuperUser = email.trim().toLowerCase() === "davidksinc@gmail.com";
+      const endpoint = isSuperUser ? "/auth/super/login" : "/auth/login";
+      const body = isSuperUser ? { email, password } : { companyId, email, password };
+      const resp = await api.post(endpoint, body);
       const token = resp.data?.token as string;
-      login({ token, companyId });
-      nav("/leads");
+      const normalizedCompanyId = isSuperUser ? "0" : companyId;
+      const role = isSuperUser ? "super_admin" : "company_admin";
+      login({ token, companyId: normalizedCompanyId, role });
+      nav("/");
     } catch (err: any) {
       setError(err?.response?.data?.error ?? "Login failed");
     } finally {
@@ -52,34 +54,36 @@ export default function LoginPage() {
     }
   }
 
+  const isSuperUser = email.trim().toLowerCase() === "davidksinc@gmail.com";
+
   return (
-    <div className="login-shell">
+    <div className="login-shell beauty-theme">
       <section className="login-showcase">
         <div className="showcase-orb orb-one" />
         <div className="showcase-orb orb-two" />
-        <p className="badge-pill">Adquisición de clientes B2B</p>
-        <h1 className="showcase-title">Convierte más conversaciones en ingresos reales.</h1>
+        <p className="badge-pill">Beauty Partner OS · Salon + Nail Studios</p>
+        <h1 className="showcase-title">Your perfect ally to grow beauty bookings every season.</h1>
         <p className="showcase-copy">
-          Leadgen OS te ayuda a detectar oportunidades calientes, nutrir contactos en el momento correcto y cerrar más rápido.
+          A premium experience for salon owners, manicurists, and teams: faster lead capture, cleaner forms, and automated follow-up that feels personal.
         </p>
 
         <div className="showcase-metrics">
           <article className="metric-card">
-            <p>+42%</p>
-            <span>Leads cualificados</span>
+            <p>+48%</p>
+            <span>Qualified beauty leads</span>
           </article>
           <article className="metric-card">
-            <p>3.5x</p>
-            <span>Más demos agendadas</span>
+            <p>2.9x</p>
+            <span>More appointment requests</span>
           </article>
           <article className="metric-card">
-            <p>-28%</p>
-            <span>Costo por adquisición</span>
+            <p>-33%</p>
+            <span>Manual admin workload</span>
           </article>
         </div>
 
         <div className="value-grid">
-          {valueProps.map((item) => (
+          {salonValueProps.map((item) => (
             <article className="value-card" key={item.title}>
               <img src={item.image} alt={item.title} loading="lazy" />
               <div>
@@ -99,17 +103,23 @@ export default function LoginPage() {
         <p className="page-subtitle">{t("login.subtitle")}</p>
 
         <form onSubmit={onSubmit} className="login-form">
-          <label>
-            {t("login.companyId")}
-            <input value={companyId} onChange={(e) => setCompanyId(e.target.value)} placeholder="699e..." />
-          </label>
+          {!isSuperUser && (
+            <label>
+              {t("login.companyId")}
+              <input value={companyId} onChange={(e) => setCompanyId(e.target.value)} placeholder="Example: 65f1b512ab34cd7890ef1234" />
+              <small className="field-help">Paste your company ID exactly as provided by your administrator.</small>
+            </label>
+          )}
+
           <label>
             {t("login.email")}
-            <input value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Example: owner@beautystudio.com" />
+            <small className="field-help">Use davidksinc@gmail.com for super user access with company ID fixed to 0.</small>
           </label>
+
           <label>
             {t("login.password")}
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" />
+            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Enter your secure password" />
           </label>
 
           {error && <div className="error-box">{error}</div>}

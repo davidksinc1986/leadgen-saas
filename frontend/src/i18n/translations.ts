@@ -41,12 +41,13 @@ export const translations: Record<Locale, Record<string, string>> = {
   },
   en: {
     "common.refresh": "Refresh",
+
     "common.logout": "Logout",
     "common.leads": "Leads",
     "common.intelligence": "Intelligence",
     "common.botFlow": "BotFlow",
     "login.title": "Leadgen OS",
-    "login.subtitle": "Sign in to manage leads, campaigns, and sales analytics.",
+    "login.subtitle": "Sign in to manage beauty leads, campaigns, and appointment analytics.",
     "login.companyId": "Company ID",
     "login.email": "Email",
     "login.password": "Password",

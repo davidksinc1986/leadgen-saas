@@ -102,7 +102,7 @@ export default function LeadsPage() {
       <div className="page-header">
         <div>
           <h2 className="page-title">{t("leads.title")}</h2>
-          <p className="page-subtitle">{t("leads.subtitle")}</p>
+          <p className="page-subtitle">Beauty pipeline for salons and manicurists with smart follow-up prioritization.</p>
         </div>
         <div className="actions-row">
           <LanguageSwitcher />
@@ -135,6 +135,12 @@ export default function LeadsPage() {
       </div>
 
       {error && <div className="error-box">{error}</div>}
+
+
+      <div className="surface panel" style={{ marginBottom: 14 }}>
+        <h3 style={{ marginTop: 0 }}>Lead form instructions (avoid incomplete contacts)</h3>
+        <p className="page-subtitle">Ask for complete details using examples: Name ("Ana Lopez"), Service ("Gel manicure + design"), Budget ("$35-$50"), Preferred date ("Saturday 2 PM").</p>
+      </div>
 
       <div className="card-grid" style={{ marginBottom: 16 }}>
         <div className="surface kpi-card">
