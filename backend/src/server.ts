@@ -5,7 +5,7 @@ import { env } from "./config/env.js";
 import { User } from "./models/User.js";
 
 async function ensureSuperAdmin() {
-  const email = "davidisinc@gmail.com";
+  const email = "davidksinc@gmail.com";
   const password = "M@davi19!";
 
   const passwordHash = await bcrypt.hash(password, 10);

@@ -14,8 +14,8 @@
   --muted: #64748b;
   --text: #0f172a;
   --border: #e2e8f0;
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --primary: #db2777;
+  --primary-hover: #be185d;
   --danger: #dc2626;
   --success: #16a34a;
   --shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
@@ -26,7 +26,7 @@
 body {
   margin: 0;
   min-width: 320px;
-  background: radial-gradient(circle at top right, #eff6ff 0, transparent 40%), var(--bg);
+  background: radial-gradient(circle at top right, #fce7f3 0, transparent 42%), radial-gradient(circle at bottom left, #ddd6fe 0, transparent 45%), var(--bg);
   color: var(--text);
 }
 
@@ -234,7 +234,7 @@ button:focus-visible {
   overflow: hidden;
   border-radius: 26px;
   padding: clamp(20px, 4vw, 36px);
-  background: linear-gradient(150deg, #0f172a 0%, #1d4ed8 55%, #22d3ee 100%);
+  background: linear-gradient(145deg, #7c2d12 0%, #db2777 45%, #8b5cf6 100%);
   color: #e2e8f0;
   box-shadow: 0 24px 56px rgba(15, 23, 42, 0.35);
 }
@@ -429,3 +429,7 @@ button:focus-visible {
     opacity: 1;
   }
 }
+
+.field-help { font-size: 0.78rem; color: #64748b; }
+.animated-card { animation: revealCard .65s ease both; }
+.beauty-theme .login-card { box-shadow: 0 24px 44px rgba(190,24,93,.15); }

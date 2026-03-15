@@ -220,7 +220,7 @@ async function previewSend() {
     }
     setPreviewInput("");
   } catch (e: any) {
-    setError(e?.response?.data?.error ?? e?.message ?? "Error en preview");
+    setError(e?.response?.data?.error ?? e?.message ?? "Preview failed");
   }
 }
 
@@ -242,16 +242,16 @@ useEffect(() => {
 return (
   <div className="page">
     <div className="page-header">
-      <div><h2 className="page-title">Bot Flow Builder</h2><p className="page-subtitle">Configura preguntas, lógica y preview conversacional.</p></div>
+      <div><h2 className="page-title">Bot Flow Builder</h2><p className="page-subtitle">Configure intake questions, automation logic, and conversational preview for beauty clients.</p></div>
       <div className="actions-row">
           <LanguageSwitcher />
-        <button onClick={createExampleFlow}>Crear flujo ejemplo</button>
-        <button onClick={load} disabled={loading}>Refrescar</button>
+        <button onClick={createExampleFlow}>Create beauty sample flow</button>
+        <button onClick={load} disabled={loading}>Refresh</button>
       </div>
     </div>
 
     <p className="page-subtitle">
-      CRUD de preguntas + Preview. Si <b>questions</b> tiene elementos, el bot usa el builder (q:...).
+      Question CRUD + live preview. Add clear examples in each prompt to reduce incomplete lead forms.
     </p>
 
     {error && <div className="error-box">{error}</div>}
@@ -292,7 +292,7 @@ return (
               {!questions.length && (
                 <tr>
                   <td colSpan={6} style={{ color: "#64748b" }}>
-                    No hay preguntas aún.
+                    No questions yet.
                   </td>
                 </tr>
               )}
@@ -317,12 +317,13 @@ return (
               }
             }}
           >
-            Guardar finalMessage
+            Save final message
           </button>
         </div>
 
         <div style={{ marginTop: 18 }}>
           <h3>Preview</h3>
+          <p className="page-subtitle">Recommended social setup prompt: ask for Instagram handle, WhatsApp number, and preferred contact method.</p>
           <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <button onClick={previewReset}>Reset</button>
             <div style={{ color: "#666" }}><b>step:</b> {previewStep}</div>
@@ -330,7 +331,7 @@ return (
 
           <div className="surface chat-log">
             {previewLog.length === 0 ? (
-              <div style={{ color: "#64748b" }}>Envía un mensaje para probar el flujo.</div>
+              <div style={{ color: "#64748b" }}>Send a message to test your flow.</div>
             ) : (
               previewLog.map((m, i) => (
                 <div key={i} className={`chat-bubble ${m.from === "user" ? "chat-user" : "chat-bot"}`}>

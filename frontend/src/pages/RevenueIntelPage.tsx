@@ -73,7 +73,7 @@ export default function RevenueIntelPage() {
       setAnalytics(analyticsResp.data);
       setCampaigns(campaignsResp.data?.campaigns ?? []);
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? "No se pudo cargar inteligencia comercial");
+      setError(err?.response?.data?.error ?? "Unable to load business intelligence");
     }
   }
 
@@ -90,7 +90,7 @@ export default function RevenueIntelPage() {
       setForm(emptyForm);
       await loadAll();
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? "No se pudo crear campaña");
+      setError(err?.response?.data?.error ?? "Unable to create campaign");
     } finally {
       setSaving(false);
     }
@@ -108,7 +108,7 @@ export default function RevenueIntelPage() {
       <div className="page-header">
         <div>
           <h2 className="page-title">Sales & Marketing Intelligence</h2>
-          <p className="page-subtitle">Vista ejecutiva con atribución de canales y performance por campaña.</p>
+          <p className="page-subtitle">Executive view with channel attribution and campaign performance for beauty businesses.</p>
         </div>
         <div className="actions-row">
           <LanguageSwitcher />
@@ -124,11 +124,11 @@ export default function RevenueIntelPage() {
           <div className="card-grid" style={{ marginBottom: 18 }}>
             {[
               ["Total leads", analytics.kpis.totalLeads],
-              ["Nuevos", analytics.kpis.nuevos],
-              ["Contactados", analytics.kpis.contactados],
-              ["Cerrados", analytics.kpis.cerrados],
+              ["New leads", analytics.kpis.nuevos],
+              ["Contacted", analytics.kpis.contactados],
+              ["Closed", analytics.kpis.cerrados],
               ["Conv. rate", `${analytics.kpis.conversionRate}%`],
-              ["Campañas activas", analytics.kpis.activeCampaigns],
+              ["Active campaigns", analytics.kpis.activeCampaigns],
               ["Spend", `$${analytics.kpis.marketingSpend}`]
             ].map(([label, value]) => (
               <div key={label as string} className="surface kpi-card">
@@ -140,11 +140,11 @@ export default function RevenueIntelPage() {
 
           <div className="panel-grid" style={{ marginBottom: 22 }}>
             <div className="surface panel">
-              <h4 style={{ marginTop: 0 }}>Fuentes top</h4>
+              <h4 style={{ marginTop: 0 }}>Top lead sources</h4>
               {topChannels.map((item) => (
                 <div key={item.source} style={{ marginBottom: 10 }}>
                   <div style={{ display: "flex", justifyContent: "space-between" }}>
-                    <span>{item.source || "Sin fuente"}</span>
+                    <span>{item.source || "No source"}</span>
                     <b>{item.count}</b>
                   </div>
                   <div style={{ height: 8, background: "#f1f5f9", borderRadius: 99 }}>
@@ -162,33 +162,46 @@ export default function RevenueIntelPage() {
             </div>
 
             <div className="surface panel">
-              <h4 style={{ marginTop: 0 }}>Tendencia diaria (30 días)</h4>
+              <h4 style={{ marginTop: 0 }}>Daily trend (30 days)</h4>
               <div style={{ maxHeight: 220, overflowY: "auto" }}>
                 {analytics.dailyTrend.map((row) => (
                   <div key={row.date} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0" }}>
                     <span>{row.date}</span>
                     <span>Leads: {row.leads}</span>
-                    <span>Cierres: {row.closed}</span>
+                    <span>Closed: {row.closed}</span>
                   </div>
                 ))}
-                {!analytics.dailyTrend.length && <div style={{ color: "#64748b" }}>Sin datos de tendencia.</div>}
+                {!analytics.dailyTrend.length && <div style={{ color: "#64748b" }}>No trend data yet.</div>}
               </div>
             </div>
           </div>
         </>
       )}
 
+
+
+      <div className="surface panel" style={{ marginBottom: 22 }}>
+        <h3 style={{ marginTop: 0 }}>Social network configuration guide</h3>
+        <ul>
+          <li><b>Instagram:</b> connect business profile, add booking link, and set campaign sourceTag like <code>ig_reels_spring</code>.</li>
+          <li><b>Facebook:</b> verify page role access and include service menu with clear pricing examples.</li>
+          <li><b>WhatsApp:</b> configure greeting and quick replies with intake examples (name, service, preferred date).</li>
+          <li><b>TikTok:</b> add profile bio CTA and use unique sourceTag such as <code>tiktok_nail_art_launch</code>.</li>
+        </ul>
+      </div>
+
       <div className="surface panel" style={{ marginBottom: 22 }}>
         <h3 style={{ marginTop: 0 }}>Campaign Builder</h3>
+        <p className="page-subtitle" style={{ marginBottom: 12 }}>Use examples in each field to avoid missing lead details and improve attribution accuracy.</p>
         <form onSubmit={createCampaign} className="form-grid">
-          <input required placeholder="Nombre" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input required placeholder="Example: Summer Glow Nails Promo" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <select value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>
             <option value="meta_ads">Meta Ads</option>
             <option value="google_ads">Google Ads</option>
             <option value="email">Email</option>
             <option value="whatsapp">WhatsApp</option>
-            <option value="organic">Orgánico</option>
-            <option value="other">Otro</option>
+            <option value="organic">Organic</option>
+            <option value="other">Other</option>
           </select>
           <input required placeholder="sourceTag" value={form.sourceTag} onChange={(e) => setForm({ ...form, sourceTag: e.target.value })} />
           <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Campaign["status"] })}>
@@ -201,27 +214,27 @@ export default function RevenueIntelPage() {
           <input type="number" placeholder="Spent" value={form.spent} onChange={(e) => setForm({ ...form, spent: Number(e.target.value) })} />
           <input type="number" placeholder="Impressions" value={form.impressions} onChange={(e) => setForm({ ...form, impressions: Number(e.target.value) })} />
           <input type="number" placeholder="Clicks" value={form.clicks} onChange={(e) => setForm({ ...form, clicks: Number(e.target.value) })} />
-          <input type="number" placeholder="CPL objetivo" value={form.cplGoal} onChange={(e) => setForm({ ...form, cplGoal: Number(e.target.value) })} />
-          <input type="number" placeholder="CVR objetivo" value={form.cvrGoal} onChange={(e) => setForm({ ...form, cvrGoal: Number(e.target.value) })} />
-          <input style={{ gridColumn: "span 2" }} placeholder="Notas" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-          <button className="btn-primary" type="submit" disabled={saving}>{saving ? "Guardando..." : "Crear campaña"}</button>
+          <input type="number" placeholder="Target CPL (example: 12)" value={form.cplGoal} onChange={(e) => setForm({ ...form, cplGoal: Number(e.target.value) })} />
+          <input type="number" placeholder="Target CVR % (example: 15)" value={form.cvrGoal} onChange={(e) => setForm({ ...form, cvrGoal: Number(e.target.value) })} />
+          <input style={{ gridColumn: "span 2" }} placeholder="Notes (example: include bridal manicure package upsell)" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+          <button className="btn-primary" type="submit" disabled={saving}>{saving ? "Saving..." : "Create campaign"}</button>
         </form>
       </div>
 
-      <h3>Performance de campañas</h3>
+      <h3>Campaign performance</h3>
       <div className="data-table-wrap">
         <table className="data-table" cellPadding={8}>
           <thead>
             <tr>
-              <th>Campaña</th>
-              <th>Canal</th>
+              <th>Campaign</th>
+              <th>Channel</th>
               <th>sourceTag</th>
               <th>Spend</th>
               <th>Leads</th>
-              <th>Cerrados</th>
+              <th>Closed</th>
               <th>CPL</th>
               <th>ROI%</th>
-              <th>Estado</th>
+              <th>Status</th>
             </tr>
           </thead>
           <tbody>
