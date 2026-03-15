@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../lib/api";
+import { postWithApiPrefixFallback } from "../lib/api";
 import { useAuth } from "../auth/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
@@ -41,7 +41,7 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const resp = await api.post("/auth/login", {
+      const resp = await postWithApiPrefixFallback<{ token: string }>("/auth/login", {
         companyId: normalizedCompanyId,
         email: normalizedEmail,
         password
