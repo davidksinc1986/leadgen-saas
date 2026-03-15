@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../lib/api";
+import { postWithApiPrefixFallback } from "../lib/api";
 import { useAuth } from "../auth/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import LanguageSwitcher from "../components/LanguageSwitcher";
@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
 
     setLoading(true);
     try {
-      const resp = await api.post("/auth/super/login", {
+      const resp = await postWithApiPrefixFallback<{ token: string }>("/auth/super/login", {
         email: normalizedEmail,
         password
       });
