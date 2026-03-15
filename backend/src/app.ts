@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import { tenantResolver } from "./middleware/tenantResolver.js";
+import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 import { authRouter } from "./routes/auth.routes.js";
@@ -23,7 +24,7 @@ import { superAdminRouter } from "./routes/super.admin.routes.js";
 export function createApp() {
  const app = express();
 
- app.use(cors());
+ app.use(cors({ origin: env.corsOrigins, credentials: true }));
 
  // Capturar rawBody para firmas Meta
  app.use(

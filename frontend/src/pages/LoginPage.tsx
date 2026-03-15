@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../auth/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+
+const SUPER_ADMIN_EMAIL = (import.meta.env.VITE_SUPER_ADMIN_EMAIL ?? "").trim().toLowerCase();
 
 const salonValueProps = [
   {
@@ -28,24 +30,33 @@ export default function LoginPage() {
   const { t } = useI18n();
   const nav = useNavigate();
   const [companyId, setCompanyId] = useState("");
-  const [email, setEmail] = useState("davidksinc@gmail.com");
-  const [password, setPassword] = useState("M@davi19!");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>();
   const [loading, setLoading] = useState(false);
+
+  const normalizedEmail = email.trim().toLowerCase();
+  const isSuperUser = useMemo(() => Boolean(SUPER_ADMIN_EMAIL) && normalizedEmail === SUPER_ADMIN_EMAIL, [normalizedEmail]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!isSuperUser && !companyId.trim()) {
+      setError("Company ID is required for company admin, admin, and agent login.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const isSuperUser = email.trim().toLowerCase() === "davidksinc@gmail.com";
       const endpoint = isSuperUser ? "/auth/super/login" : "/auth/login";
-      const body = isSuperUser ? { email, password } : { companyId, email, password };
+      const body = isSuperUser
+        ? { email: normalizedEmail, password }
+        : { companyId: companyId.trim(), email: normalizedEmail, password };
       const resp = await api.post(endpoint, body);
       const token = resp.data?.token as string;
-      const normalizedCompanyId = isSuperUser ? "0" : companyId;
-      const role = isSuperUser ? "super_admin" : "company_admin";
-      login({ token, companyId: normalizedCompanyId, role });
+      const normalizedCompanyId = isSuperUser ? "0" : companyId.trim();
+      login({ token, companyId: normalizedCompanyId, role: null });
       nav("/");
     } catch (err: any) {
       setError(err?.response?.data?.error ?? "Login failed");
@@ -53,8 +64,6 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
-
-  const isSuperUser = email.trim().toLowerCase() === "davidksinc@gmail.com";
 
   return (
     <div className="login-shell beauty-theme">
@@ -113,13 +122,17 @@ export default function LoginPage() {
 
           <label>
             {t("login.email")}
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Example: owner@beautystudio.com" />
-            <small className="field-help">Use davidksinc@gmail.com for super user access with company ID fixed to 0.</small>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Example: owner@beautystudio.com" autoComplete="username" />
+            {SUPER_ADMIN_EMAIL ? (
+              <small className="field-help">Super user login enabled for the configured owner email.</small>
+            ) : (
+              <small className="field-help">Super user login is disabled until VITE_SUPER_ADMIN_EMAIL is configured.</small>
+            )}
           </label>
 
           <label>
             {t("login.password")}
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Enter your secure password" />
+            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Enter your secure password" autoComplete="current-password" />
           </label>
 
           {error && <div className="error-box">{error}</div>}
