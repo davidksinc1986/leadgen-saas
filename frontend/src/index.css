@@ -234,7 +234,7 @@ button:focus-visible {
   overflow: hidden;
   border-radius: 26px;
   padding: clamp(20px, 4vw, 36px);
-  background: linear-gradient(145deg, #7c2d12 0%, #db2777 45%, #8b5cf6 100%);
+  background: linear-gradient(145deg, #0f172a 0%, #1d4ed8 52%, #0ea5e9 100%);
   color: #e2e8f0;
   box-shadow: 0 24px 56px rgba(15, 23, 42, 0.35);
 }
@@ -357,6 +357,24 @@ button:focus-visible {
   margin: 4px 0 0;
   font-size: 0.82rem;
   color: #bfdbfe;
+}
+
+.value-grid.compact .value-card {
+  grid-template-columns: 1fr;
+}
+
+.value-grid.compact .value-card h3 {
+  font-size: 0.9rem;
+}
+
+.value-grid.compact .value-card p {
+  margin-top: 2px;
+}
+
+.admin-showcase {
+  min-height: 280px;
+  display: grid;
+  align-content: center;
 }
 
 .login-card {

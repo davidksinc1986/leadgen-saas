@@ -1,28 +1,15 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { api } from "../lib/api";
 import { useAuth } from "../auth/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 
-const SUPER_ADMIN_EMAIL = (import.meta.env.VITE_SUPER_ADMIN_EMAIL ?? "").trim().toLowerCase();
-
-const salonValueProps = [
-  {
-    title: "Season-ready beauty campaigns",
-    text: "Launch spring nails, summer glow-ups, and holiday salon bundles with templates your team can publish in minutes.",
-    image: "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=900&q=80"
-  },
-  {
-    title: "Perfect intake forms",
-    text: "Every form includes examples and clear hints so clients complete details correctly without extra follow-up calls.",
-    image: "https://images.unsplash.com/photo-1595475884562-073c30d45670?auto=format&fit=crop&w=900&q=80"
-  },
-  {
-    title: "Social setup made simple",
-    text: "Get step-by-step onboarding for Instagram, Facebook, WhatsApp, and TikTok to keep your booking pipeline full.",
-    image: "https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=900&q=80"
-  }
+const useCases = [
+  "Salones de belleza y barberías",
+  "Inmobiliarias y agentes comerciales",
+  "Clínicas, consultorios y servicios locales",
+  "Equipos de ventas que captan leads por redes sociales"
 ];
 
 export default function LoginPage() {
@@ -32,30 +19,37 @@ export default function LoginPage() {
   const [companyId, setCompanyId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>();
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const normalizedEmail = email.trim().toLowerCase();
-  const isSuperUser = useMemo(() => Boolean(SUPER_ADMIN_EMAIL) && normalizedEmail === SUPER_ADMIN_EMAIL, [normalizedEmail]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (!isSuperUser && !companyId.trim()) {
-      setError("Company ID is required for company admin, admin, and agent login.");
+    const normalizedCompanyId = companyId.trim();
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedCompanyId) {
+      setError("Company ID es obligatorio.");
+      return;
+    }
+
+    if (!normalizedEmail || !password) {
+      setError("Email y password son obligatorios.");
       return;
     }
 
     setLoading(true);
     try {
-      const endpoint = isSuperUser ? "/auth/super/login" : "/auth/login";
-      const body = isSuperUser
-        ? { email: normalizedEmail, password }
-        : { companyId: companyId.trim(), email: normalizedEmail, password };
-      const resp = await api.post(endpoint, body);
-      const token = resp.data?.token as string;
-      const normalizedCompanyId = isSuperUser ? "0" : companyId.trim();
+      const resp = await api.post("/auth/login", {
+        companyId: normalizedCompanyId,
+        email: normalizedEmail,
+        password
+      });
+      const token = resp.data?.token as string | undefined;
+      if (!token) {
+        throw new Error("Missing token in login response");
+      }
       login({ token, companyId: normalizedCompanyId, role: null });
       nav("/");
     } catch (err: any) {
@@ -66,38 +60,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="login-shell beauty-theme">
+    <div className="login-shell">
       <section className="login-showcase">
-        <div className="showcase-orb orb-one" />
-        <div className="showcase-orb orb-two" />
-        <p className="badge-pill">Beauty Partner OS · Salon + Nail Studios</p>
-        <h1 className="showcase-title">Your perfect ally to grow beauty bookings every season.</h1>
+        <p className="badge-pill">Leadgen SaaS · Multi-tenant</p>
+        <h1 className="showcase-title">Convierte conversaciones en clientes, sin importar tu industria.</h1>
         <p className="showcase-copy">
-          A premium experience for salon owners, manicurists, and teams: faster lead capture, cleaner forms, and automated follow-up that feels personal.
+          Plataforma multitenant para captar leads desde redes sociales con mensajes automáticos, CTAs configurables y seguimiento comercial centralizado.
         </p>
 
-        <div className="showcase-metrics">
-          <article className="metric-card">
-            <p>+48%</p>
-            <span>Qualified beauty leads</span>
-          </article>
-          <article className="metric-card">
-            <p>2.9x</p>
-            <span>More appointment requests</span>
-          </article>
-          <article className="metric-card">
-            <p>-33%</p>
-            <span>Manual admin workload</span>
-          </article>
-        </div>
-
-        <div className="value-grid">
-          {salonValueProps.map((item) => (
-            <article className="value-card" key={item.title}>
-              <img src={item.image} alt={item.title} loading="lazy" />
+        <div className="value-grid compact">
+          {useCases.map((item) => (
+            <article className="value-card" key={item}>
               <div>
-                <h3>{item.title}</h3>
-                <p>{item.text}</p>
+                <h3>{item}</h3>
+                <p>Flujos reutilizables para solicitar cita, llamada, visita o consulta.</p>
               </div>
             </article>
           ))}
@@ -112,27 +88,19 @@ export default function LoginPage() {
         <p className="page-subtitle">{t("login.subtitle")}</p>
 
         <form onSubmit={onSubmit} className="login-form">
-          {!isSuperUser && (
-            <label>
-              {t("login.companyId")}
-              <input value={companyId} onChange={(e) => setCompanyId(e.target.value)} placeholder="Example: 65f1b512ab34cd7890ef1234" />
-              <small className="field-help">Paste your company ID exactly as provided by your administrator.</small>
-            </label>
-          )}
+          <label>
+            {t("login.companyId")}
+            <input value={companyId} onChange={(e) => setCompanyId(e.target.value)} placeholder="Ej: 65f1b512ab34cd7890ef1234" autoComplete="organization" />
+          </label>
 
           <label>
             {t("login.email")}
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Example: owner@beautystudio.com" autoComplete="username" />
-            {SUPER_ADMIN_EMAIL ? (
-              <small className="field-help">Super user login enabled for the configured owner email.</small>
-            ) : (
-              <small className="field-help">Super user login is disabled until VITE_SUPER_ADMIN_EMAIL is configured.</small>
-            )}
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ej: ventas@empresa.com" autoComplete="username" />
           </label>
 
           <label>
             {t("login.password")}
-            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="Enter your secure password" autoComplete="current-password" />
+            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder="••••••••" autoComplete="current-password" />
           </label>
 
           {error && <div className="error-box">{error}</div>}
