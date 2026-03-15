@@ -47,7 +47,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     "common.intelligence": "Intelligence",
     "common.botFlow": "BotFlow",
     "login.title": "Leadgen OS",
-    "login.subtitle": "Sign in to manage beauty leads, campaigns, and appointment analytics.",
+    "login.subtitle": "Sign in to manage leads, campaigns, and commercial analytics.",
     "login.companyId": "Company ID",
     "login.email": "Email",
     "login.password": "Password",

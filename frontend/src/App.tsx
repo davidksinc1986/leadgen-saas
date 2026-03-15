@@ -6,10 +6,15 @@ import RevenueIntelPage from "./pages/RevenueIntelPage";
 import { useAuth } from "./auth/AuthProvider";
 import SuperDashboardPage from "./pages/SuperDashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
+import type { AuthRole } from "./lib/storage";
 
-function Protected({ children }: { children: React.ReactNode }) {
-  const { token } = useAuth();
+function Protected({ children, roles }: { children: React.ReactNode; roles?: AuthRole[] }) {
+  const { token, role } = useAuth();
   if (!token) return <Navigate to="/login" replace />;
+  if (roles && (!role || !roles.includes(role))) {
+    return role === "super_admin" ? <Navigate to="/super" replace /> : <Navigate to="/admin" replace />;
+  }
   return <>{children}</>;
 }
 
@@ -23,6 +28,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/login/admin" element={<AdminLoginPage />} />
       <Route
         path="/"
         element={
@@ -34,7 +40,7 @@ export default function App() {
       <Route
         path="/super"
         element={
-          <Protected>
+          <Protected roles={["super_admin"]}>
             <SuperDashboardPage />
           </Protected>
         }
@@ -42,7 +48,7 @@ export default function App() {
       <Route
         path="/admin"
         element={
-          <Protected>
+          <Protected roles={["company_admin", "admin", "agent"]}>
             <AdminDashboardPage />
           </Protected>
         }
@@ -50,7 +56,7 @@ export default function App() {
       <Route
         path="/leads"
         element={
-          <Protected>
+          <Protected roles={["company_admin", "admin", "agent"]}>
             <LeadsPage />
           </Protected>
         }
@@ -58,7 +64,7 @@ export default function App() {
       <Route
         path="/botflow"
         element={
-          <Protected>
+          <Protected roles={["company_admin", "admin", "agent"]}>
             <BotFlowPage />
           </Protected>
         }
@@ -66,7 +72,7 @@ export default function App() {
       <Route
         path="/intelligence"
         element={
-          <Protected>
+          <Protected roles={["company_admin", "admin", "agent"]}>
             <RevenueIntelPage />
           </Protected>
         }
