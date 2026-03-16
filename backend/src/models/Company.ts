@@ -36,16 +36,9 @@ const QuestionSchema = new mongoose.Schema(
   type: { type: String, enum: ["choice", "text", "number"], required: true },
   prompt: { type: String, required: true },
   required: { type: Boolean, default: true },
-
-  // a dónde guardar: "presupuesto" | "ubicacion" | "tiempoCompra" | "interes" | "nombre" | "customFields.habitaciones"
   saveTo: { type: String, required: true },
-
-  options: { type: [BotOptionSchema], default: [] }, // para choice
-
-  // si no cumple showIf => se salta
+  options: { type: [BotOptionSchema], default: [] },
   showIf: { type: [ConditionSchema], default: [] },
-
-  // reglas de salto
   next: {
     defaultNextId: { type: String, default: null },
     rules: { type: [NextRuleSchema], default: [] }
@@ -56,7 +49,6 @@ const QuestionSchema = new mongoose.Schema(
 
 const BotFlowSchema = new mongoose.Schema(
 {
-  // compatibilidad con tu flujo anterior (toggles/prompts)
   enabledQuestions: {
     presupuesto: { type: Boolean, default: true },
     ubicacion: { type: Boolean, default: true },
@@ -81,10 +73,7 @@ const BotFlowSchema = new mongoose.Schema(
   },
   propertyOptions: { type: [BotOptionSchema], default: [] },
   timeOptions: { type: [BotOptionSchema], default: [] },
-
-  // NUEVO: builder dinámico (si existe y tiene elementos, se usa en vez del flujo viejo)
   questions: { type: [QuestionSchema], default: [] },
-
   finalMessage: { type: String, default: "¡Listo! Ya tengo tu información. Un asesor te contactará pronto." }
 },
 { _id: false }
@@ -94,6 +83,25 @@ const CompanySchema = new mongoose.Schema(
 {
   name: { type: String, required: true },
   slug: { type: String, required: true, unique: true },
+
+  branding: {
+    logoUrl: { type: String, default: "" },
+    appTitle: { type: String, default: "" },
+    primaryColor: { type: String, default: "#2563eb" },
+    secondaryColor: { type: String, default: "#0ea5e9" },
+    accentColor: { type: String, default: "#db2777" },
+    neutralColor: { type: String, default: "#0f172a" },
+    themePreset: { type: String, default: "modern-blue" }
+  },
+
+  calendarSync: {
+    enabled: { type: Boolean, default: false },
+    provider: { type: String, enum: ["none", "google", "outlook", "apple"], default: "none" },
+    calendarEmail: { type: String, default: "" },
+    syncMode: { type: String, enum: ["two_way", "read_only", "write_only"], default: "two_way" },
+    timezone: { type: String, default: "UTC" },
+    lastSyncAt: { type: Date, default: null }
+  },
 
   integrations: {
     whatsapp: { enabled: { type: Boolean, default: false }, provider: { type: String, default: "meta" } },

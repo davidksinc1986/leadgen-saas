@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { AxiosRequestConfig, AxiosResponse } from "axios";
+import type { AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from "axios";
 
 const runtimeOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost:4000";
 const baseURL = import.meta.env.VITE_API_BASE_URL || runtimeOrigin;
@@ -12,16 +12,27 @@ function withApiPrefix(url: string) {
   return `/api${url}`;
 }
 
-export async function postWithApiPrefixFallback<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
-  try {
-    return await api.post<T>(url, data, config);
-  } catch (error: any) {
+type RetryableConfig = InternalAxiosRequestConfig & { _apiPrefixRetried?: boolean };
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
     const status = error?.response?.status as number | undefined;
-    if ((status === 404 || status === 405) && !url.startsWith("/api/")) {
-      return api.post<T>(withApiPrefix(url), data, config);
+    const config = error?.config as RetryableConfig | undefined;
+    const url = config?.url;
+
+    if (!config || !url || config._apiPrefixRetried || url.startsWith("/api/") || (status !== 404 && status !== 405)) {
+      return Promise.reject(error);
     }
-    throw error;
+
+    config._apiPrefixRetried = true;
+    config.url = withApiPrefix(url);
+    return api.request(config);
   }
+);
+
+export async function postWithApiPrefixFallback<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<AxiosResponse<T>> {
+  return api.post<T>(url, data, config);
 }
 
 export function setAuth(token: string | null, companyId: string | null) {

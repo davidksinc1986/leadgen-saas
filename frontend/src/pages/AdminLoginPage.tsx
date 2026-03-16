@@ -44,11 +44,15 @@ export default function AdminLoginPage() {
   return (
     <div className="login-shell">
       <section className="login-showcase admin-showcase">
-        <p className="badge-pill">Acceso de plataforma</p>
+        <p className="badge-pill">Saas LeadGen · Control de Plataforma</p>
         <h1 className="showcase-title">Panel de Super User</h1>
         <p className="showcase-copy">
-          Accede desde esta ruta exclusiva para administración global del SaaS multitenant.
+          Gestiona tenants, branding, usuarios, sincronización de agenda y operaciones globales desde un dashboard ejecutivo.
         </p>
+        <div className="hero-contact-row">
+          <a className="btn" href="mailto:davidksinc@gmail.com">📧 davidksinc@gmail.com</a>
+          <a className="btn btn-primary" href="https://wa.me/50670104017" target="_blank" rel="noreferrer">💬 Soporte WhatsApp</a>
+        </div>
       </section>
 
       <div className="surface login-card">

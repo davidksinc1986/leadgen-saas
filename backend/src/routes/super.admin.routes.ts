@@ -11,6 +11,17 @@ export const superAdminRouter = Router();
 
 superAdminRouter.use(requireAuth, requireRole("super_admin"));
 
+superAdminRouter.get("/overview", async (_req, res) => {
+  const [users, companies] = await Promise.all([User.countDocuments({}), Company.countDocuments({})]);
+  const [superUsers, companyAdmins, agents] = await Promise.all([
+    User.countDocuments({ role: "super_admin" }),
+    User.countDocuments({ role: { $in: ["company_admin", "admin"] } }),
+    User.countDocuments({ role: "agent" })
+  ]);
+
+  res.json({ users, companies, superUsers, companyAdmins, agents });
+});
+
 superAdminRouter.get("/users", async (_req, res) => {
   const users = await User.find({})
     .populate("companyId", "name slug")
@@ -108,6 +119,46 @@ superAdminRouter.get("/companies", async (_req, res) => {
   res.json({ companies });
 });
 
+superAdminRouter.post("/companies", async (req, res) => {
+  const schema = z.object({
+    name: z.string().min(2),
+    slug: z.string().min(2).regex(/^[a-z0-9-]+$/)
+  });
+
+  const body = schema.parse(req.body);
+  const existing = await Company.findOne({ slug: body.slug });
+  if (existing) return res.status(409).json({ error: "Slug already exists" });
+
+  const company = await Company.create({ name: body.name, slug: body.slug });
+  res.status(201).json({ company });
+});
+
+superAdminRouter.patch("/companies/:companyId", async (req, res) => {
+  const schema = z.object({
+    name: z.string().min(2).optional(),
+    slug: z.string().min(2).regex(/^[a-z0-9-]+$/).optional()
+  });
+  const body = schema.parse(req.body);
+
+  if (body.slug) {
+    const duplicate = await Company.findOne({ slug: body.slug, _id: { $ne: req.params.companyId } });
+    if (duplicate) return res.status(409).json({ error: "Slug already exists" });
+  }
+
+  const company = await Company.findByIdAndUpdate(req.params.companyId, { $set: body }, { new: true });
+  if (!company) return res.status(404).json({ error: "Not found" });
+  res.json({ company });
+});
+
+superAdminRouter.delete("/companies/:companyId", async (req, res) => {
+  const company = await Company.findById(req.params.companyId);
+  if (!company) return res.status(404).json({ error: "Not found" });
+
+  await User.deleteMany({ companyId: company._id, systemProtected: false });
+  await company.deleteOne();
+  res.json({ ok: true });
+});
+
 superAdminRouter.patch("/companies/:companyId/limits", async (req, res) => {
   const schema = z.object({
     maxCompanyAdmins: z.number().int().min(1).max(100).optional(),
@@ -126,6 +177,44 @@ superAdminRouter.patch("/companies/:companyId/limits", async (req, res) => {
     { new: true }
   );
 
+  if (!company) return res.status(404).json({ error: "Not found" });
+  res.json({ company });
+});
+
+superAdminRouter.patch("/companies/:companyId/branding", async (req, res) => {
+  const schema = z.object({
+    logoUrl: z.string().url().or(z.literal("")).optional(),
+    appTitle: z.string().max(120).optional(),
+    primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    neutralColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    themePreset: z.string().min(2).max(60).optional()
+  });
+
+  const body = schema.parse(req.body);
+  const set = Object.fromEntries(Object.entries(body).map(([k, v]) => [`branding.${k}`, v]));
+  const company = await Company.findByIdAndUpdate(req.params.companyId, { $set: set }, { new: true });
+  if (!company) return res.status(404).json({ error: "Not found" });
+  res.json({ company });
+});
+
+superAdminRouter.patch("/companies/:companyId/calendar", async (req, res) => {
+  const schema = z.object({
+    enabled: z.boolean().optional(),
+    provider: z.enum(["none", "google", "outlook", "apple"]).optional(),
+    calendarEmail: z.string().email().or(z.literal("")).optional(),
+    syncMode: z.enum(["two_way", "read_only", "write_only"]).optional(),
+    timezone: z.string().min(2).max(80).optional()
+  });
+
+  const body = schema.parse(req.body);
+  const set: Record<string, unknown> = Object.fromEntries(Object.entries(body).map(([k, v]) => [`calendarSync.${k}`, v]));
+  if (Object.keys(set).length > 0) {
+    set["calendarSync.lastSyncAt"] = new Date();
+  }
+
+  const company = await Company.findByIdAndUpdate(req.params.companyId, { $set: set }, { new: true });
   if (!company) return res.status(404).json({ error: "Not found" });
   res.json({ company });
 });

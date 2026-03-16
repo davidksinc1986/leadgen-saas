@@ -49,6 +49,43 @@ companySettingsRouter.patch("/me/notifications", requireAuth, requireRole("compa
   res.json({ company });
 });
 
+
+companySettingsRouter.patch("/me/branding", requireAuth, requireRole("company_admin"), async (req, res) => {
+  const companyId = req.companyId!;
+  const schema = z.object({
+    logoUrl: z.string().url().or(z.literal("")).optional(),
+    appTitle: z.string().max(120).optional(),
+    primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    secondaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    neutralColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    themePreset: z.string().min(2).max(60).optional()
+  });
+
+  const body = schema.parse(req.body);
+  const set = Object.fromEntries(Object.entries(body).map(([k, v]) => [`branding.${k}`, v]));
+
+  const company = await Company.findByIdAndUpdate(companyId, { $set: set }, { new: true });
+  res.json({ company });
+});
+
+companySettingsRouter.patch("/me/calendar", requireAuth, requireRole("company_admin"), async (req, res) => {
+  const companyId = req.companyId!;
+  const schema = z.object({
+    enabled: z.boolean().optional(),
+    provider: z.enum(["none", "google", "outlook", "apple"]).optional(),
+    calendarEmail: z.string().email().or(z.literal("")).optional(),
+    syncMode: z.enum(["two_way", "read_only", "write_only"]).optional(),
+    timezone: z.string().min(2).max(80).optional()
+  });
+
+  const body = schema.parse(req.body);
+  const set: Record<string, unknown> = Object.fromEntries(Object.entries(body).map(([k, v]) => [`calendarSync.${k}`, v]));
+  if (Object.keys(set).length > 0) set["calendarSync.lastSyncAt"] = new Date();
+
+  const company = await Company.findByIdAndUpdate(companyId, { $set: set }, { new: true });
+  res.json({ company });
+});
 companySettingsRouter.patch("/me/business", requireAuth, requireRole("company_admin"), async (req, res) => {
   const companyId = req.companyId!;
   const schema = z.object({
