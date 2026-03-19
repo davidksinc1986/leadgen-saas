@@ -47,6 +47,16 @@ const QuestionSchema = new mongoose.Schema(
 { _id: false }
 );
 
+const WeeklyAvailabilitySchema = new mongoose.Schema(
+  {
+    dayOfWeek: { type: Number, min: 0, max: 6, required: true },
+    enabled: { type: Boolean, default: true },
+    start: { type: String, default: "09:00" },
+    end: { type: String, default: "17:00" }
+  },
+  { _id: false }
+);
+
 const BotFlowSchema = new mongoose.Schema(
 {
   enabledQuestions: {
@@ -101,6 +111,17 @@ const CompanySchema = new mongoose.Schema(
     syncMode: { type: String, enum: ["two_way", "read_only", "write_only"], default: "two_way" },
     timezone: { type: String, default: "UTC" },
     lastSyncAt: { type: Date, default: null }
+  },
+
+  appointmentSettings: {
+    enabled: { type: Boolean, default: false },
+    timezone: { type: String, default: "UTC" },
+    slotDurationMin: { type: Number, default: 30, min: 15, max: 180 },
+    bookingNoticeHours: { type: Number, default: 2, min: 0, max: 168 },
+    weeklyAvailability: {
+      type: [WeeklyAvailabilitySchema],
+      default: () => [1, 2, 3, 4, 5].map((dayOfWeek) => ({ dayOfWeek, enabled: true, start: "09:00", end: "17:00" }))
+    }
   },
 
   integrations: {

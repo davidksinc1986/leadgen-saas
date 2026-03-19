@@ -64,11 +64,18 @@ const faqs = [
   }
 ];
 
+type LoginResponse = {
+  token: string;
+  user?: {
+    companyId?: string | null;
+    role?: "company_admin" | "admin" | "agent" | "super_admin";
+  };
+};
+
 export default function LoginPage() {
   const { login } = useAuth();
   const { t } = useI18n();
   const nav = useNavigate();
-  const [companyId, setCompanyId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -78,13 +85,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
 
-    const normalizedCompanyId = companyId.trim();
     const normalizedEmail = email.trim().toLowerCase();
-
-    if (!normalizedCompanyId) {
-      setError("Company ID es obligatorio.");
-      return;
-    }
 
     if (!normalizedEmail || !password) {
       setError("Email y password son obligatorios.");
@@ -93,14 +94,13 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const resp = await postWithApiPrefixFallback<{ token: string }>("/auth/login", {
-        companyId: normalizedCompanyId,
+      const resp = await postWithApiPrefixFallback<LoginResponse>("/auth/login", {
         email: normalizedEmail,
         password
       });
-      const token = resp.data?.token as string | undefined;
+      const token = resp.data?.token;
       if (!token) throw new Error("Missing token in login response");
-      login({ token, companyId: normalizedCompanyId, role: null });
+      login({ token, companyId: resp.data?.user?.companyId ?? null, role: resp.data?.user?.role ?? null });
       nav("/");
     } catch (err: any) {
       setError(err?.response?.data?.error ?? "Login failed");
@@ -148,13 +148,11 @@ export default function LoginPage() {
             <LanguageSwitcher />
           </div>
           <p className="page-subtitle">{t("login.subtitle")}</p>
+          <div className="info-box" style={{ marginBottom: 16 }}>
+            {t("login.workspaceHint")}
+          </div>
 
           <form onSubmit={onSubmit} className="login-form">
-            <label>
-              {t("login.companyId")}
-              <input value={companyId} onChange={(e) => setCompanyId(e.target.value)} placeholder="Ej: 65f1b512ab34cd7890ef1234" autoComplete="organization" />
-            </label>
-
             <label>
               {t("login.email")}
               <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Ej: ventas@empresa.com" autoComplete="username" />
@@ -221,17 +219,6 @@ export default function LoginPage() {
                 <p>{f.a}</p>
               </article>
             ))}
-          </div>
-
-          <div className="cta-strip">
-            <div>
-              <h3>¿Listo para escalar tus conversiones?</h3>
-              <p>Conversemos hoy y te guiamos paso a paso en tu implementación.</p>
-            </div>
-            <div className="actions-row">
-              <a className="btn" href="mailto:davidksinc@gmail.com">Escribir por correo</a>
-              <a className="btn btn-primary" href="https://wa.me/50670104017" target="_blank" rel="noreferrer">Hablar por WhatsApp</a>
-            </div>
           </div>
         </div>
       </section>

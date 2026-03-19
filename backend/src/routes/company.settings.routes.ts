@@ -10,7 +10,7 @@ import { encrypt } from "../utils/crypto.js";
 
 export const companySettingsRouter = Router();
 
-companySettingsRouter.get("/me", requireAuth, requireRole(["company_admin", "agent"]), async (req, res) => {
+companySettingsRouter.get("/me", requireAuth, requireRole(["company_admin", "admin", "agent"]), async (req, res) => {
   const companyId = req.companyId!;
   const company = await Company.findById(companyId);
   res.json({ company });
@@ -151,7 +151,7 @@ companySettingsRouter.patch("/me/business", requireAuth, requireRole("company_ad
   res.json({ company });
 });
 
-companySettingsRouter.get("/me/stats", requireAuth, requireRole(["company_admin", "agent"]), async (req, res) => {
+companySettingsRouter.get("/me/stats", requireAuth, requireRole(["company_admin", "admin", "agent"]), async (req, res) => {
   const companyId = req.companyId!;
   const userRole = req.user?.role;
 

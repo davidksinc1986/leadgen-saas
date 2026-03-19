@@ -59,6 +59,100 @@ function ensureArray(v: any): any[] {
  return Array.isArray(v) ? v : [];
 }
 
+
+function buildQuickSetupQuestions(input: { serviceType: string; objective: "appointment" | "sell" | "qualify" }) {
+ const service = input.serviceType.trim();
+ const introQuestion = {
+   id: "q_nombre",
+   type: "text",
+   prompt: "¿Cómo te llamas?",
+   required: true,
+   saveTo: "nombre",
+   next: { defaultNextId: "q_servicio", rules: [] }
+ };
+
+ const serviceQuestion = {
+   id: "q_servicio",
+   type: "text",
+   prompt: `¿Qué servicio o solución te interesa de ${service}?`,
+   required: true,
+   saveTo: "interes",
+   next: { defaultNextId: input.objective === "appointment" ? "q_agenda_dia" : "q_presupuesto", rules: [] }
+ };
+
+ const budgetQuestion = {
+   id: "q_presupuesto",
+   type: "text",
+   prompt: "¿Cuál es tu presupuesto estimado o rango ideal?",
+   required: input.objective !== "appointment",
+   saveTo: "presupuesto",
+   next: { defaultNextId: "q_urgencia", rules: [] }
+ };
+
+ const urgencyQuestion = {
+   id: "q_urgencia",
+   type: "choice",
+   prompt: "¿Qué tan pronto quieres avanzar?",
+   required: true,
+   saveTo: "tiempoCompra",
+   options: [
+     { key: "1", label: "Hoy / esta semana", value: "Hoy / esta semana" },
+     { key: "2", label: "En 2-4 semanas", value: "En 2-4 semanas" },
+     { key: "3", label: "Solo explorando", value: "Solo explorando" }
+   ],
+   next: { defaultNextId: "q_objetivo", rules: [] }
+ };
+
+ const objectiveQuestion = {
+   id: "q_objetivo",
+   type: "text",
+   prompt: input.objective === "sell" ? "¿Qué quieres comprar exactamente o qué resultado esperas?" : "¿Cuál es tu objetivo principal o necesidad?",
+   required: true,
+   saveTo: "customFields.primaryGoal",
+   next: { defaultNextId: input.objective === "appointment" ? "q_agenda_dia" : null, rules: [] }
+ };
+
+ const appointmentDayQuestion = {
+   id: "q_agenda_dia",
+   type: "choice",
+   prompt: "¿Qué día prefieres para tu cita?",
+   required: true,
+   saveTo: "customFields.preferredDay",
+   options: [
+     { key: "1", label: "Hoy", value: "Hoy" },
+     { key: "2", label: "Mañana", value: "Mañana" },
+     { key: "3", label: "Esta semana", value: "Esta semana" }
+   ],
+   next: { defaultNextId: "q_agenda_hora", rules: [] }
+ };
+
+ const appointmentTimeQuestion = {
+   id: "q_agenda_hora",
+   type: "choice",
+   prompt: "¿Qué bloque horario te conviene más?",
+   required: true,
+   saveTo: "customFields.preferredTimeBlock",
+   options: [
+     { key: "1", label: "Mañana", value: "Mañana" },
+     { key: "2", label: "Tarde", value: "Tarde" },
+     { key: "3", label: "Lo antes posible", value: "Lo antes posible" }
+   ],
+   next: { defaultNextId: null, rules: [] }
+ };
+
+ if (input.objective === "appointment") {
+   return [introQuestion, serviceQuestion, appointmentDayQuestion, appointmentTimeQuestion];
+ }
+
+ return [introQuestion, serviceQuestion, budgetQuestion, urgencyQuestion, objectiveQuestion];
+}
+
+function extractHoursRange(hours: string) {
+ const match = hours.match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+ if (!match) return { start: "09:00", end: "17:00" };
+ return { start: match[1], end: match[2] };
+}
+
 function validateQuestionGraph(questions: any[]) {
  const ids = new Set<string>(questions.map((q) => String(q.id)));
  const errors: string[] = [];
@@ -88,7 +182,7 @@ function validateQuestionGraph(questions: any[]) {
 /**
 * GET bot flow
 */
-companyBotFlowRouter.get("/me/bot-flow", requireAuth, requireRole("company_admin"), async (req, res) => {
+companyBotFlowRouter.get("/me/bot-flow", requireAuth, requireRole(["company_admin", "admin"]), async (req, res) => {
  const companyId = req.companyId!;
  const company = await Company.findById(companyId).select("botFlow");
  res.json({ botFlow: (company as any)?.botFlow ?? null });
@@ -97,7 +191,7 @@ companyBotFlowRouter.get("/me/bot-flow", requireAuth, requireRole("company_admin
 /**
 * PATCH bot flow (settings generales)
 */
-companyBotFlowRouter.patch("/me/bot-flow", requireAuth, requireRole("company_admin"), async (req, res) => {
+companyBotFlowRouter.patch("/me/bot-flow", requireAuth, requireRole(["company_admin", "admin"]), async (req, res) => {
  const companyId = req.companyId!;
 
  const schema = z.object({
@@ -140,11 +234,72 @@ companyBotFlowRouter.patch("/me/bot-flow", requireAuth, requireRole("company_adm
  res.json({ botFlow: (company as any).botFlow });
 });
 
+
+companyBotFlowRouter.post("/me/bot-flow/quick-setup", requireAuth, requireRole(["company_admin", "admin"]), async (req, res) => {
+ const companyId = req.companyId!;
+ const schema = z.object({
+   businessName: z.string().min(2),
+   serviceType: z.string().min(2),
+   objective: z.enum(["appointment", "sell", "qualify"]),
+   availableHours: z.string().min(3),
+   channel: z.enum(["whatsapp", "instagram", "messenger", "webchat"]),
+   timezone: z.string().min(2).optional().default("UTC")
+ });
+
+ const body = schema.parse(req.body);
+ const company = await Company.findById(companyId);
+ if (!company) return res.status(404).json({ error: "Company not found" });
+
+ const { start, end } = extractHoursRange(body.availableHours);
+ const leadGoal = body.objective === "appointment" ? "appointment" : "lead";
+ const quickQuestions = buildQuickSetupQuestions({ serviceType: body.serviceType, objective: body.objective });
+ const welcome = `Hola, soy el asistente virtual de ${body.businessName}. Te ayudaré a ${body.objective === "appointment" ? "agendar tu cita" : "calificar tu solicitud"} para ${body.serviceType}.`;
+ const finalMessage = body.objective === "appointment"
+   ? `Perfecto. Ya tengo tu preferencia para ${body.serviceType}. Nuestro equipo confirmará tu cita muy pronto.`
+   : `Perfecto. Ya registré tu interés en ${body.serviceType}. Un asesor te contactará con el siguiente paso.`;
+
+ (company as any).name = body.businessName;
+ (company as any).leadGoal = leadGoal;
+ (company as any).botFlow = {
+   ...((company as any).botFlow ?? {}),
+   prompts: {
+     ...(((company as any).botFlow ?? {}).prompts ?? {}),
+     welcome,
+     invalidOption: "Responde con una de las opciones sugeridas para continuar más rápido."
+   },
+   questions: quickQuestions,
+   finalMessage
+ };
+
+ (company as any).appointmentSettings = {
+   ...((company as any).appointmentSettings ?? {}),
+   enabled: body.objective === "appointment",
+   timezone: body.timezone,
+   weeklyAvailability: [1, 2, 3, 4, 5].map((dayOfWeek) => ({ dayOfWeek, enabled: true, start, end }))
+ };
+
+ (company as any).calendarSync = {
+   ...((company as any).calendarSync ?? {}),
+   timezone: body.timezone
+ };
+
+ (company as any).integrations = {
+   ...((company as any).integrations ?? {}),
+   [body.channel]: {
+     ...(((company as any).integrations ?? {})[body.channel] ?? {}),
+     enabled: true
+   }
+ };
+
+ await company.save();
+ res.json({ botFlow: (company as any).botFlow, company });
+});
+
 /**
 * PREVIEW: simula una interacción sin tocar leads ni conversations
 * body: { step?: string, data?: any, text: string }
 */
-companyBotFlowRouter.post("/me/bot-flow/preview", requireAuth, requireRole("company_admin"), async (req, res) => {
+companyBotFlowRouter.post("/me/bot-flow/preview", requireAuth, requireRole(["company_admin", "admin"]), async (req, res) => {
  const companyId = req.companyId!;
  const schema = z.object({
    step: z.string().optional().default("idle"),
@@ -167,7 +322,7 @@ companyBotFlowRouter.post("/me/bot-flow/preview", requireAuth, requireRole("comp
 /**
 * POST add question
 */
-companyBotFlowRouter.post("/me/bot-flow/questions", requireAuth, requireRole("company_admin"), async (req, res) => {
+companyBotFlowRouter.post("/me/bot-flow/questions", requireAuth, requireRole(["company_admin", "admin"]), async (req, res) => {
  const companyId = req.companyId!;
 
  const schema = z.object({
@@ -200,7 +355,7 @@ companyBotFlowRouter.post("/me/bot-flow/questions", requireAuth, requireRole("co
 /**
 * PATCH update question by id
 */
-companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRole("company_admin"), async (req, res) => {
+companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRole(["company_admin", "admin"]), async (req, res) => {
  const companyId = req.companyId!;
  const id = req.params.id;
 
@@ -255,7 +410,7 @@ companyBotFlowRouter.patch("/me/bot-flow/questions/:id", requireAuth, requireRol
 /**
 * MOVE question (reorder)
 */
-companyBotFlowRouter.post("/me/bot-flow/questions/:id/move", requireAuth, requireRole("company_admin"), async (req, res) => {
+companyBotFlowRouter.post("/me/bot-flow/questions/:id/move", requireAuth, requireRole(["company_admin", "admin"]), async (req, res) => {
  const companyId = req.companyId!;
  const id = req.params.id;
 
@@ -281,7 +436,7 @@ companyBotFlowRouter.post("/me/bot-flow/questions/:id/move", requireAuth, requir
 /**
 * DELETE question
 */
-companyBotFlowRouter.delete("/me/bot-flow/questions/:id", requireAuth, requireRole("company_admin"), async (req, res) => {
+companyBotFlowRouter.delete("/me/bot-flow/questions/:id", requireAuth, requireRole(["company_admin", "admin"]), async (req, res) => {
  const companyId = req.companyId!;
  const id = req.params.id;
 
