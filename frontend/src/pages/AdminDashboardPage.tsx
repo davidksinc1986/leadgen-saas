@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import { useAuth } from "../auth/AuthProvider";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import PageNav from "../components/PageNav";
+import { useI18n } from "../i18n/I18nProvider";
 
 type Lead = {
   _id: string;
@@ -53,6 +55,7 @@ type Agent = {
 export default function AdminDashboardPage() {
   const nav = useNavigate();
   const { logout, role } = useAuth();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null);
@@ -109,16 +112,18 @@ export default function AdminDashboardPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h2 className="page-title">Company Operations Dashboard</h2>
-          <p className="page-subtitle">Control operativo de leads, citas, agentes y seguimiento desde una sola vista.</p>
+          <h2 className="page-title">{t("dashboard.title")}</h2>
+          <p className="page-subtitle">{t("dashboard.subtitle")}</p>
         </div>
         <div className="actions-row">
+          <PageNav showBack={false} />
           <LanguageSwitcher />
           <button onClick={() => nav("/leads")}>Leads Workspace</button>
           <button onClick={() => nav("/intelligence")}>Revenue Intelligence</button>
-          <button onClick={() => nav("/botflow")}>Bot Flow Studio</button>
-          <button onClick={load} disabled={loading}>Refresh</button>
-          <button className="btn-danger" onClick={logout}>Logout</button>
+          <button onClick={() => nav("/botflow")}>{t("common.botFlow")}</button>
+          <button onClick={() => nav("/settings")}>{t("common.settings")}</button>
+          <button onClick={load} disabled={loading}>{t("common.refresh")}</button>
+          <button className="btn-danger" onClick={logout}>{t("common.logout")}</button>
         </div>
       </div>
 
