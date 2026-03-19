@@ -4,7 +4,7 @@ export type AuthRole = "super_admin" | "company_admin" | "admin" | "agent";
 
 export type AuthState = {
   token: string;
-  companyId: string;
+  companyId: string | null;
   role: AuthRole;
 };
 

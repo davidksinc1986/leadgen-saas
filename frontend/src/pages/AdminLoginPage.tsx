@@ -4,6 +4,8 @@ import { useAuth } from "../auth/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import LanguageSwitcher from "../components/LanguageSwitcher";
 
+type LoginResponse = { token: string; user?: { companyId?: string | null; role?: "super_admin" } };
+
 export default function AdminLoginPage() {
   const { login } = useAuth();
   const nav = useNavigate();
@@ -24,7 +26,7 @@ export default function AdminLoginPage() {
 
     setLoading(true);
     try {
-      const resp = await postWithApiPrefixFallback<{ token: string }>("/auth/super/login", {
+      const resp = await postWithApiPrefixFallback<LoginResponse>("/auth/super/login", {
         email: normalizedEmail,
         password
       });
@@ -32,7 +34,7 @@ export default function AdminLoginPage() {
       if (!token) {
         throw new Error("Missing token in super admin login response");
       }
-      login({ token, companyId: "0", role: "super_admin" });
+      login({ token, companyId: resp.data?.user?.companyId ?? null, role: resp.data?.user?.role ?? "super_admin" });
       nav("/super");
     } catch (err: any) {
       setError(err?.response?.data?.error ?? "Super admin login failed");

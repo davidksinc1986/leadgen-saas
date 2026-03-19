@@ -3,7 +3,7 @@ import { loadAuth, saveAuth } from "../lib/storage";
 import type { AuthRole, AuthState } from "../lib/storage";
 import { setAuth } from "../lib/api";
 
-type LoginParams = Pick<AuthState, "token" | "companyId"> & { role?: AuthRole | null };
+type LoginParams = Pick<AuthState, "token"> & { companyId?: string | null; role?: AuthRole | null };
 
 type AuthCtx = {
   token: string | null;
@@ -13,21 +13,35 @@ type AuthCtx = {
   logout: () => void;
 };
 
+type TokenPayload = {
+  role?: AuthRole;
+  companyId?: string | null;
+};
+
 const Ctx = createContext<AuthCtx | null>(null);
 
-function getRoleFromToken(token: string): AuthRole | null {
+function decodeJwtPayload(token: string): TokenPayload | null {
   try {
     const payloadBase64 = token.split(".")[1];
     if (!payloadBase64) return null;
-    const payload = JSON.parse(atob(payloadBase64));
-    const role = payload?.role;
-    if (["super_admin", "company_admin", "admin", "agent"].includes(role)) {
-      return role as AuthRole;
-    }
-    return null;
+    const normalized = payloadBase64.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), "=");
+    return JSON.parse(atob(padded));
   } catch {
     return null;
   }
+}
+
+function getSessionFromToken(token: string) {
+  const payload = decodeJwtPayload(token);
+  const role = payload?.role;
+  const companyId = typeof payload?.companyId === "string" && payload.companyId.trim() ? payload.companyId : null;
+
+  if (role && ["super_admin", "company_admin", "admin", "agent"].includes(role)) {
+    return { role, companyId } as { role: AuthRole; companyId: string | null };
+  }
+
+  return { role: null, companyId };
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -38,10 +52,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const saved = loadAuth();
     if (saved) {
+      const tokenSession = getSessionFromToken(saved.token);
+      const nextCompanyId = saved.companyId ?? tokenSession.companyId;
+      const nextRole = saved.role ?? tokenSession.role;
+
       setToken(saved.token);
-      setCompanyId(saved.companyId);
-      setRole(saved.role ?? getRoleFromToken(saved.token));
-      setAuth(saved.token, saved.companyId);
+      setCompanyId(nextCompanyId);
+      setRole(nextRole);
+      setAuth(saved.token, nextCompanyId);
     }
   }, []);
 
@@ -51,15 +69,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       companyId,
       role,
       login: ({ token, companyId, role }) => {
-        const nextRole = role ?? getRoleFromToken(token);
+        const tokenSession = getSessionFromToken(token);
+        const nextRole = role ?? tokenSession.role;
+        const nextCompanyId = companyId ?? tokenSession.companyId;
+
         if (!nextRole) {
           throw new Error("Unable to detect user role from token");
         }
+
         setToken(token);
-        setCompanyId(companyId);
+        setCompanyId(nextCompanyId);
         setRole(nextRole);
-        saveAuth({ token, companyId, role: nextRole });
-        setAuth(token, companyId);
+        saveAuth({ token, companyId: nextCompanyId, role: nextRole });
+        setAuth(token, nextCompanyId);
       },
       logout: () => {
         setToken(null);

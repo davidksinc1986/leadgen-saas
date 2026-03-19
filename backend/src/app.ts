@@ -19,6 +19,7 @@ import { companyBotFlowRouter } from "./routes/company.botflow.routes.js";
 import { companyUsersRouter } from "./routes/company.users.routes.js";
 
 import { integrationRouter } from "./routes/integration.routes.js";
+import { appointmentRouter } from "./routes/appointment.routes.js";
 import { superAdminRouter } from "./routes/super.admin.routes.js";
 
 export function createApp() {
@@ -49,6 +50,7 @@ export function createApp() {
 
  app.use("/agents", agentRouter);
  app.use("/integrations", integrationRouter);
+ app.use("/appointments", appointmentRouter);
 
  app.use("/leads", leadRouter);
  app.use("/campaigns", campaignRouter);
