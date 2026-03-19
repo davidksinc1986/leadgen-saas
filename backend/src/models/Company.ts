@@ -125,11 +125,48 @@ const CompanySchema = new mongoose.Schema(
   },
 
   integrations: {
-    whatsapp: { enabled: { type: Boolean, default: false }, provider: { type: String, default: "meta" } },
-    facebook: { enabled: { type: Boolean, default: false } },
-    messenger: { enabled: { type: Boolean, default: false } },
-    instagram: { enabled: { type: Boolean, default: false } },
-    tiktok: { enabled: { type: Boolean, default: false } },
+    whatsapp: {
+      enabled: { type: Boolean, default: false },
+      provider: { type: String, default: "meta" },
+      phoneNumberId: { type: String, default: "" },
+      businessAccountId: { type: String, default: "" },
+      accessTokenEnc: { type: String, default: "" },
+      verifyTokenEnc: { type: String, default: "" },
+      webhookSecretEnc: { type: String, default: "" }
+    },
+    facebook: {
+      enabled: { type: Boolean, default: false },
+      pageId: { type: String, default: "" },
+      formIds: { type: String, default: "" },
+      accessTokenEnc: { type: String, default: "" }
+    },
+    messenger: {
+      enabled: { type: Boolean, default: false },
+      pageId: { type: String, default: "" },
+      pageAccessTokenEnc: { type: String, default: "" },
+      appSecretEnc: { type: String, default: "" },
+      verifyTokenEnc: { type: String, default: "" }
+    },
+    instagram: {
+      enabled: { type: Boolean, default: false },
+      appId: { type: String, default: "" },
+      accessTokenEnc: { type: String, default: "" },
+      appSecretEnc: { type: String, default: "" },
+      verifyTokenEnc: { type: String, default: "" }
+    },
+    tiktok: {
+      enabled: { type: Boolean, default: false },
+      appId: { type: String, default: "" },
+      advertiserId: { type: String, default: "" },
+      accessTokenEnc: { type: String, default: "" },
+      appSecretEnc: { type: String, default: "" }
+    },
+    webchat: {
+      enabled: { type: Boolean, default: true },
+      allowedDomains: { type: String, default: "" },
+      welcomeHeadline: { type: String, default: "" },
+      widgetLabel: { type: String, default: "" }
+    },
     elevenLabs: { enabled: { type: Boolean, default: false }, voiceId: { type: String, default: "" }, apiKeyEnc: { type: String, default: "" } },
     salesforce: { enabled: { type: Boolean, default: false }, instanceUrl: { type: String, default: "" }, clientId: { type: String, default: "" }, clientSecretEnc: { type: String, default: "" } }
   },

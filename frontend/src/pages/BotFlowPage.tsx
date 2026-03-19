@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import PageNav from "../components/PageNav";
+import { useI18n } from "../i18n/I18nProvider";
 
 type Condition = {
   path: string;
@@ -39,6 +42,13 @@ type QuickSetupForm = {
   timezone: string;
 };
 
+
+type QuickSetupTemplate = QuickSetupForm & {
+  id: string;
+  category: string;
+  label: string;
+  description: string;
+};
 type QuestionForm = {
   id: string;
   type: "choice" | "text" | "number";
@@ -59,6 +69,82 @@ const defaultQuickSetup: QuickSetupForm = {
   channel: "whatsapp",
   timezone: "UTC"
 };
+
+
+const quickSetupTemplates: QuickSetupTemplate[] = [
+  {
+    id: "beauty-salon",
+    category: "Beauty",
+    label: "Salon / Nails",
+    description: "Reserva, servicios y huecos disponibles para belleza.",
+    businessName: "Glow Studio",
+    serviceType: "manicure, pedicure y nail art",
+    objective: "appointment",
+    availableHours: "09:00-19:00",
+    channel: "whatsapp",
+    timezone: "America/Mexico_City"
+  },
+  {
+    id: "clinic",
+    category: "Health",
+    label: "Clinic / Medspa",
+    description: "Captura síntomas, tratamiento y agenda valoración.",
+    businessName: "Nova Clinic",
+    serviceType: "valoraciones médicas y tratamientos estéticos",
+    objective: "appointment",
+    availableHours: "08:00-18:00",
+    channel: "instagram",
+    timezone: "America/Bogota"
+  },
+  {
+    id: "real-estate",
+    category: "Sales",
+    label: "Real Estate",
+    description: "Califica presupuesto, zona y urgencia de compra.",
+    businessName: "Prime Realty",
+    serviceType: "compra de propiedades residenciales",
+    objective: "qualify",
+    availableHours: "09:00-18:00",
+    channel: "messenger",
+    timezone: "America/New_York"
+  },
+  {
+    id: "automotive",
+    category: "Services",
+    label: "Auto Workshop",
+    description: "Detecta servicio requerido y prioridad de la cita.",
+    businessName: "Torque Garage",
+    serviceType: "mantenimiento automotriz y diagnóstico",
+    objective: "appointment",
+    availableHours: "08:00-17:30",
+    channel: "whatsapp",
+    timezone: "America/Chicago"
+  },
+  {
+    id: "legal",
+    category: "Professional",
+    label: "Legal Intake",
+    description: "Filtra tipo de caso, urgencia y contacto.",
+    businessName: "Legal Partners",
+    serviceType: "consultas legales y revisión de casos",
+    objective: "qualify",
+    availableHours: "09:00-17:00",
+    channel: "webchat",
+    timezone: "America/New_York"
+  },
+  {
+    id: "education",
+    category: "Education",
+    label: "Courses / Academy",
+    description: "Identifica programa, presupuesto y seguimiento comercial.",
+    businessName: "Skill Academy",
+    serviceType: "cursos, bootcamps y mentorías",
+    objective: "sell",
+    availableHours: "10:00-20:00",
+    channel: "instagram",
+    timezone: "UTC"
+  }
+];
 
 const defaultQuestionForm = (): QuestionForm => ({
   id: `q_${Math.random().toString(36).slice(2, 8)}`,
@@ -127,6 +213,8 @@ function fromForm(form: QuestionForm): Question {
 }
 
 export default function BotFlowPage() {
+  const nav = useNavigate();
+  const { t, locale } = useI18n();
   const [botFlow, setBotFlow] = useState<BotFlow | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -136,6 +224,7 @@ export default function BotFlowPage() {
   const [questionForm, setQuestionForm] = useState<QuestionForm>(defaultQuestionForm);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [advancedJson, setAdvancedJson] = useState<string>(pretty(defaultQuestionForm()));
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>(quickSetupTemplates[0].id);
 
   const questions = useMemo(() => botFlow?.questions ?? [], [botFlow]);
 
@@ -173,11 +262,30 @@ export default function BotFlowPage() {
     setFormAndJson(toForm(question));
   }
 
+  function applyTemplate(templateId: string) {
+    const template = quickSetupTemplates.find((item) => item.id === templateId);
+    if (!template) return;
+    setSelectedTemplateId(templateId);
+    setQuickSetup({
+      businessName: template.businessName,
+      serviceType: template.serviceType,
+      objective: template.objective,
+      availableHours: template.availableHours,
+      channel: template.channel,
+      timezone: template.timezone
+    });
+    setSuccess(locale === "en" ? "Template applied. You can edit every field before generating." : "Template aplicado. Puedes editar cada campo antes de generar.");
+    setError(null);
+  }
+
   async function runQuickSetup() {
     setSaving(true);
     setError(null);
     setSuccess(null);
     try {
+      if (!quickSetup.businessName.trim() || !quickSetup.serviceType.trim()) {
+        throw new Error(locale === "en" ? "Complete business name and service type before generating the flow." : "Completa el nombre del negocio y el tipo de servicio antes de generar el flujo.");
+      }
       const resp = await api.post("/company/me/bot-flow/quick-setup", quickSetup);
       setBotFlow(resp.data?.botFlow ?? null);
       setSuccess("Quick Setup aplicado. Ya tienes un flujo base listo para operar.");
@@ -306,12 +414,14 @@ export default function BotFlowPage() {
     <div className="page">
       <div className="page-header">
         <div>
-          <h2 className="page-title">Bot Flow Builder</h2>
-          <p className="page-subtitle">Quick Setup + editor visual para lanzar tu bot sin depender de JSON técnico.</p>
+          <h2 className="page-title">{t("botflow.title")}</h2>
+          <p className="page-subtitle">{t("botflow.subtitle")}</p>
         </div>
         <div className="actions-row">
+          <PageNav />
           <LanguageSwitcher />
-          <button onClick={load} disabled={loading}>Refresh</button>
+          <button onClick={() => nav("/settings")}>{t("common.settings")}</button>
+          <button onClick={load} disabled={loading}>{t("common.refresh")}</button>
         </div>
       </div>
 
@@ -320,29 +430,44 @@ export default function BotFlowPage() {
 
       <div className="panel-grid" style={{ alignItems: "start" }}>
         <section className="surface panel animated-card">
-          <h3 style={{ marginTop: 0 }}>Quick Setup Mode</h3>
-          <p className="page-subtitle">Configura el negocio en minutos y genera automáticamente preguntas, flujo y agenda base.</p>
+          <h3 style={{ marginTop: 0 }}>{t("botflow.quickSetup")}</h3>
+          <p className="page-subtitle">{t("botflow.quickSetupSubtitle")}</p>
+
+          <div className="settings-cards" style={{ marginBottom: 12 }}>
+            {quickSetupTemplates.map((template) => (
+              <button
+                key={template.id}
+                type="button"
+                className={`template-card ${selectedTemplateId === template.id ? "template-card-active" : ""}`}
+                onClick={() => applyTemplate(template.id)}
+              >
+                <span className="badge-pill">{template.category}</span>
+                <strong>{template.label}</strong>
+                <span>{template.description}</span>
+              </button>
+            ))}
+          </div>
 
           <div className="form-grid" style={{ display: "grid", gap: 12 }}>
-            <input placeholder="Nombre del negocio" value={quickSetup.businessName} onChange={(e) => setQuickSetup({ ...quickSetup, businessName: e.target.value })} />
-            <input placeholder="Tipo de servicio" value={quickSetup.serviceType} onChange={(e) => setQuickSetup({ ...quickSetup, serviceType: e.target.value })} />
+            <input placeholder={locale === "en" ? "Business name" : "Nombre del negocio"} value={quickSetup.businessName} onChange={(e) => setQuickSetup({ ...quickSetup, businessName: e.target.value })} />
+            <input placeholder={locale === "en" ? "Service type" : "Tipo de servicio"} value={quickSetup.serviceType} onChange={(e) => setQuickSetup({ ...quickSetup, serviceType: e.target.value })} />
             <select value={quickSetup.objective} onChange={(e) => setQuickSetup({ ...quickSetup, objective: e.target.value as QuickSetupForm["objective"] })}>
               <option value="appointment">Agendar cita</option>
               <option value="sell">Vender</option>
               <option value="qualify">Calificar leads</option>
             </select>
-            <input placeholder="Horarios disponibles (ej: 09:00-17:00)" value={quickSetup.availableHours} onChange={(e) => setQuickSetup({ ...quickSetup, availableHours: e.target.value })} />
+            <input placeholder={locale === "en" ? "Available hours (e.g. 09:00-17:00)" : "Horarios disponibles (ej: 09:00-17:00)"} value={quickSetup.availableHours} onChange={(e) => setQuickSetup({ ...quickSetup, availableHours: e.target.value })} />
             <select value={quickSetup.channel} onChange={(e) => setQuickSetup({ ...quickSetup, channel: e.target.value as QuickSetupForm["channel"] })}>
               <option value="whatsapp">WhatsApp</option>
               <option value="instagram">Instagram</option>
               <option value="messenger">Messenger</option>
               <option value="webchat">Webchat</option>
             </select>
-            <input placeholder="Timezone" value={quickSetup.timezone} onChange={(e) => setQuickSetup({ ...quickSetup, timezone: e.target.value })} />
+            <input placeholder={locale === "en" ? "Timezone" : "Zona horaria"} value={quickSetup.timezone} onChange={(e) => setQuickSetup({ ...quickSetup, timezone: e.target.value })} />
           </div>
 
           <div className="actions-row" style={{ marginTop: 12 }}>
-            <button className="btn-primary" onClick={runQuickSetup} disabled={saving}>Generar flujo automático</button>
+            <button className="btn-primary" onClick={runQuickSetup} disabled={saving}>{t("botflow.generate")}</button>
           </div>
         </section>
 

@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import PageNav from "../components/PageNav";
 
 type Lead = {
   _id: string;
@@ -105,9 +106,11 @@ export default function LeadsPage() {
           <p className="page-subtitle">Beauty pipeline for salons and manicurists with smart follow-up prioritization.</p>
         </div>
         <div className="actions-row">
+          <PageNav />
           <LanguageSwitcher />
           <button onClick={() => nav("/botflow")}>{t("common.botFlow")}</button>
           <button onClick={() => nav("/intelligence")}>{t("common.intelligence")}</button>
+          <button onClick={() => nav("/settings")}>{t("common.settings")}</button>
           <button onClick={load} disabled={loading}>{t("common.refresh")}</button>
           <button className="btn-danger" onClick={logout}>{t("common.logout")}</button>
         </div>

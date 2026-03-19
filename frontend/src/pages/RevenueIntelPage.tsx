@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n/I18nProvider";
 import LanguageSwitcher from "../components/LanguageSwitcher";
+import PageNav from "../components/PageNav";
 
 type Kpis = {
   totalLeads: number;
@@ -111,8 +112,10 @@ export default function RevenueIntelPage() {
           <p className="page-subtitle">Executive view with channel attribution and campaign performance for beauty businesses.</p>
         </div>
         <div className="actions-row">
+          <PageNav />
           <LanguageSwitcher />
           <button onClick={() => nav("/leads")}>{t("common.leads")}</button>
+          <button onClick={() => nav("/settings")}>{t("common.settings")}</button>
           <button onClick={loadAll}>{t("common.refresh")}</button>
         </div>
       </div>

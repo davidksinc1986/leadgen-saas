@@ -3,6 +3,7 @@ import LoginPage from "./pages/LoginPage";
 import LeadsPage from "./pages/LeadsPage";
 import BotFlowPage from "./pages/BotFlowPage";
 import RevenueIntelPage from "./pages/RevenueIntelPage";
+import SettingsPage from "./pages/SettingsPage";
 import { useAuth } from "./auth/AuthProvider";
 import SuperDashboardPage from "./pages/SuperDashboardPage";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
@@ -74,6 +75,15 @@ export default function App() {
         element={
           <Protected roles={["company_admin", "admin", "agent"]}>
             <RevenueIntelPage />
+          </Protected>
+        }
+      />
+
+      <Route
+        path="/settings"
+        element={
+          <Protected roles={["company_admin", "admin"]}>
+            <SettingsPage />
           </Protected>
         }
       />

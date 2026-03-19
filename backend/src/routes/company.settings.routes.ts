@@ -76,12 +76,44 @@ companySettingsRouter.patch("/me/calendar", requireAuth, requireRole("company_ad
     provider: z.enum(["none", "google", "outlook", "apple"]).optional(),
     calendarEmail: z.string().email().or(z.literal("")).optional(),
     syncMode: z.enum(["two_way", "read_only", "write_only"]).optional(),
-    timezone: z.string().min(2).max(80).optional()
+    timezone: z.string().min(2).max(80).optional(),
+    appointmentSettings: z
+      .object({
+        enabled: z.boolean().optional(),
+        timezone: z.string().min(2).max(80).optional(),
+        slotDurationMin: z.number().int().min(15).max(180).optional(),
+        bookingNoticeHours: z.number().int().min(0).max(168).optional(),
+        weeklyAvailability: z
+          .array(
+            z.object({
+              dayOfWeek: z.number().int().min(0).max(6),
+              enabled: z.boolean(),
+              start: z.string().regex(/^\d{2}:\d{2}$/),
+              end: z.string().regex(/^\d{2}:\d{2}$/)
+            })
+          )
+          .length(7)
+          .optional()
+      })
+      .optional()
   });
 
   const body = schema.parse(req.body);
-  const set: Record<string, unknown> = Object.fromEntries(Object.entries(body).map(([k, v]) => [`calendarSync.${k}`, v]));
-  if (Object.keys(set).length > 0) set["calendarSync.lastSyncAt"] = new Date();
+  const set: Record<string, unknown> = {};
+
+  for (const [k, v] of Object.entries(body)) {
+    if (k === "appointmentSettings" || v === undefined) continue;
+    set[`calendarSync.${k}`] = v;
+  }
+
+  for (const [k, v] of Object.entries(body.appointmentSettings ?? {})) {
+    if (v === undefined) continue;
+    set[`appointmentSettings.${k}`] = v;
+  }
+
+  if (Object.keys(set).some((key) => key.startsWith("calendarSync."))) {
+    set["calendarSync.lastSyncAt"] = new Date();
+  }
 
   const company = await Company.findByIdAndUpdate(companyId, { $set: set }, { new: true });
   res.json({ company });
@@ -89,6 +121,7 @@ companySettingsRouter.patch("/me/calendar", requireAuth, requireRole("company_ad
 companySettingsRouter.patch("/me/business", requireAuth, requireRole("company_admin"), async (req, res) => {
   const companyId = req.companyId!;
   const schema = z.object({
+    name: z.string().min(2).max(120).optional(),
     leadGoal: z.enum(["appointment", "lead"]).optional(),
     languages: z
       .object({
@@ -98,11 +131,60 @@ companySettingsRouter.patch("/me/business", requireAuth, requireRole("company_ad
       .optional(),
     integrations: z
       .object({
-        whatsapp: z.object({ enabled: z.boolean().optional(), provider: z.string().optional() }).optional(),
-        facebook: z.object({ enabled: z.boolean().optional() }).optional(),
-        messenger: z.object({ enabled: z.boolean().optional() }).optional(),
-        instagram: z.object({ enabled: z.boolean().optional() }).optional(),
-        tiktok: z.object({ enabled: z.boolean().optional() }).optional(),
+        whatsapp: z
+          .object({
+            enabled: z.boolean().optional(),
+            provider: z.string().optional(),
+            phoneNumberId: z.string().optional(),
+            businessAccountId: z.string().optional(),
+            accessToken: z.string().optional(),
+            verifyToken: z.string().optional(),
+            webhookSecret: z.string().optional()
+          })
+          .optional(),
+        facebook: z
+          .object({
+            enabled: z.boolean().optional(),
+            pageId: z.string().optional(),
+            formIds: z.string().optional(),
+            accessToken: z.string().optional()
+          })
+          .optional(),
+        messenger: z
+          .object({
+            enabled: z.boolean().optional(),
+            pageId: z.string().optional(),
+            pageAccessToken: z.string().optional(),
+            appSecret: z.string().optional(),
+            verifyToken: z.string().optional()
+          })
+          .optional(),
+        instagram: z
+          .object({
+            enabled: z.boolean().optional(),
+            appId: z.string().optional(),
+            accessToken: z.string().optional(),
+            appSecret: z.string().optional(),
+            verifyToken: z.string().optional()
+          })
+          .optional(),
+        tiktok: z
+          .object({
+            enabled: z.boolean().optional(),
+            appId: z.string().optional(),
+            advertiserId: z.string().optional(),
+            accessToken: z.string().optional(),
+            appSecret: z.string().optional()
+          })
+          .optional(),
+        webchat: z
+          .object({
+            enabled: z.boolean().optional(),
+            allowedDomains: z.string().optional(),
+            welcomeHeadline: z.string().optional(),
+            widgetLabel: z.string().optional()
+          })
+          .optional(),
         elevenLabs: z
           .object({ enabled: z.boolean().optional(), voiceId: z.string().optional(), apiKey: z.string().optional() })
           .optional(),
@@ -121,14 +203,57 @@ companySettingsRouter.patch("/me/business", requireAuth, requireRole("company_ad
   const body = schema.parse(req.body);
   const update: Record<string, unknown> = {};
 
+  if (body.name) update.name = body.name;
   if (body.leadGoal) update.leadGoal = body.leadGoal;
   if (body.languages) update.languages = body.languages;
 
-  if (body.integrations?.whatsapp) update["integrations.whatsapp"] = body.integrations.whatsapp;
-  if (body.integrations?.facebook) update["integrations.facebook"] = body.integrations.facebook;
-  if (body.integrations?.messenger) update["integrations.messenger"] = body.integrations.messenger;
-  if (body.integrations?.instagram) update["integrations.instagram"] = body.integrations.instagram;
-  if (body.integrations?.tiktok) update["integrations.tiktok"] = body.integrations.tiktok;
+  if (body.integrations?.whatsapp) {
+    update["integrations.whatsapp"] = {
+      enabled: body.integrations.whatsapp.enabled,
+      provider: body.integrations.whatsapp.provider,
+      phoneNumberId: body.integrations.whatsapp.phoneNumberId,
+      businessAccountId: body.integrations.whatsapp.businessAccountId,
+      ...(body.integrations.whatsapp.accessToken ? { accessTokenEnc: encrypt(body.integrations.whatsapp.accessToken) } : {}),
+      ...(body.integrations.whatsapp.verifyToken ? { verifyTokenEnc: encrypt(body.integrations.whatsapp.verifyToken) } : {}),
+      ...(body.integrations.whatsapp.webhookSecret ? { webhookSecretEnc: encrypt(body.integrations.whatsapp.webhookSecret) } : {})
+    };
+  }
+  if (body.integrations?.facebook) {
+    update["integrations.facebook"] = {
+      enabled: body.integrations.facebook.enabled,
+      pageId: body.integrations.facebook.pageId,
+      formIds: body.integrations.facebook.formIds,
+      ...(body.integrations.facebook.accessToken ? { accessTokenEnc: encrypt(body.integrations.facebook.accessToken) } : {})
+    };
+  }
+  if (body.integrations?.messenger) {
+    update["integrations.messenger"] = {
+      enabled: body.integrations.messenger.enabled,
+      pageId: body.integrations.messenger.pageId,
+      ...(body.integrations.messenger.pageAccessToken ? { pageAccessTokenEnc: encrypt(body.integrations.messenger.pageAccessToken) } : {}),
+      ...(body.integrations.messenger.appSecret ? { appSecretEnc: encrypt(body.integrations.messenger.appSecret) } : {}),
+      ...(body.integrations.messenger.verifyToken ? { verifyTokenEnc: encrypt(body.integrations.messenger.verifyToken) } : {})
+    };
+  }
+  if (body.integrations?.instagram) {
+    update["integrations.instagram"] = {
+      enabled: body.integrations.instagram.enabled,
+      appId: body.integrations.instagram.appId,
+      ...(body.integrations.instagram.accessToken ? { accessTokenEnc: encrypt(body.integrations.instagram.accessToken) } : {}),
+      ...(body.integrations.instagram.appSecret ? { appSecretEnc: encrypt(body.integrations.instagram.appSecret) } : {}),
+      ...(body.integrations.instagram.verifyToken ? { verifyTokenEnc: encrypt(body.integrations.instagram.verifyToken) } : {})
+    };
+  }
+  if (body.integrations?.tiktok) {
+    update["integrations.tiktok"] = {
+      enabled: body.integrations.tiktok.enabled,
+      appId: body.integrations.tiktok.appId,
+      advertiserId: body.integrations.tiktok.advertiserId,
+      ...(body.integrations.tiktok.accessToken ? { accessTokenEnc: encrypt(body.integrations.tiktok.accessToken) } : {}),
+      ...(body.integrations.tiktok.appSecret ? { appSecretEnc: encrypt(body.integrations.tiktok.appSecret) } : {})
+    };
+  }
+  if (body.integrations?.webchat) update["integrations.webchat"] = body.integrations.webchat;
   if (body.integrations?.elevenLabs) {
     update["integrations.elevenLabs"] = {
       enabled: body.integrations.elevenLabs.enabled,
